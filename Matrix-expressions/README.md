@@ -7,13 +7,15 @@ output: github_document
 
 In this chapter we use the following libraries:
 
-```{r}
+
+```r
 library(microbenchmark)
 ```
 
 ## Parsing expressions
 
-```{r}
+
+```r
 m <- function(data) {
   structure(list(data = data), 
             nrow = nrow(data),
@@ -35,7 +37,8 @@ matrix_sum <- function(A, B) {
 }
 ```
 
-```{r}
+
+```r
 toString.matrix_data <- function(x, ...) {
   paste0("[", attr(x, "def_expr"), "]")
 }
@@ -50,7 +53,8 @@ print.matrix_expr <- function(x, ...) {
 }
 ```
 
-```{r}
+
+```r
 A <- matrix(1, nrow = 10, ncol = 20)
 B <- matrix(1, nrow = 20, ncol = 10)
 C <- matrix(1, nrow = 10, ncol = 10)
@@ -58,7 +62,12 @@ C <- matrix(1, nrow = 10, ncol = 10)
 matrix_sum(matrix_mult(m(A), m(B)), m(C))
 ```
 
-```{r}
+```
+## (([A] * [B]) + [C])
+```
+
+
+```r
 `*.matrix_expr` <- function(A, B) {
   stopifnot(ncol(A) == nrow(B))
   matrix_mult(A, B)
@@ -69,11 +78,17 @@ matrix_sum(matrix_mult(m(A), m(B)), m(C))
 }
 ```
 
-```{r}
+
+```r
 m(A) * m(B) + m(C)
 ```
 
-```{r}
+```
+## (([A] * [B]) + [C])
+```
+
+
+```r
 dim.matrix_expr <- function(x) {
   c(attr(x, "nrow"), attr(x, "ncol"))
 }
@@ -81,7 +96,8 @@ dim.matrix_expr <- function(x) {
 
 ### Meta-programming parsing
 
-```{r}
+
+```r
 build_matrix_expr <- function(expr) {
   if (is.name(expr)) {
       return(substitute(m(name), list(name = expr)))
@@ -106,22 +122,34 @@ build_matrix_expr <- function(expr) {
 }
 ```
 
-```{r}
+
+```r
 build_matrix_expr(quote(A * B))
 ```
 
-```{r}
+```
+## m(A) * m(B)
+```
+
+
+```r
 parse_matrix_expr <- function(expr) {
   expr <- substitute(expr)
   build_matrix_expr(expr)
 }
 ```
 
-```{r}
+
+```r
 parse_matrix_expr(A * B)
 ```
 
-```{r}
+```
+## m(A) * m(B)
+```
+
+
+```r
 parse_matrix_expr <- function(expr) {
   expr <- substitute(expr)
   modified_expr <- build_matrix_expr(expr)
@@ -129,11 +157,17 @@ parse_matrix_expr <- function(expr) {
 }
 ```
 
-```{r}
+
+```r
 parse_matrix_expr(A * B)
 ```
 
-```{r}
+```
+## ([A] * [B])
+```
+
+
+```r
 build_matrix_expr <- function(expr, env) {
   if (is.call(expr)) {
     if (expr[[1]] == as.name("(")) 
@@ -151,7 +185,8 @@ build_matrix_expr <- function(expr, env) {
 }
 ```
 
-```{r}
+
+```r
 parse_matrix_expr <- function(expr) {
   expr <- substitute(expr)
   build_matrix_expr(expr, parent.frame())
@@ -160,10 +195,15 @@ parse_matrix_expr <- function(expr) {
 parse_matrix_expr(A * B + matrix(1, nrow = 10, ncol = 10))
 ```
 
+```
+## (([A] * [B]) + [matrix(1, nrow = 10, ncol = 10)])
+```
+
 
 ## Expression manipulation
 
-```{r}
+
+```r
 rearrange_matrix_expr <- function(expr) {
   UseMethod("rearrange_matrix_expr")
 }
@@ -182,7 +222,8 @@ rearrange_matrix_expr.matrix_sum <- function(expr) {
 
 ### Optimising multiplication
 
-```{r}
+
+```r
 arrange_optimal_matrix_mult <- function(matrices) {
   n <- length(matrices)
   dims <- matrix(0, nrow = n, ncol = 2)
@@ -205,7 +246,8 @@ arrange_optimal_matrix_mult <- function(matrices) {
 }
 ```
 
-```{r}
+
+```r
 backtrack_matrix_mult <- function(i, j, dims, N, matrices) {
   if (i == j) {
     matrices[[i]]
@@ -222,22 +264,26 @@ backtrack_matrix_mult <- function(i, j, dims, N, matrices) {
 
 ### Expression rewriting
 
-```{r}
+
+```r
 leaf <- function(x) structure(x, class = c("leaf", "tree"))
 inner <- function(left, right) 
   structure(list(left = left, right = right),
             class = c("inner", "tree"))
 ```
 
-```{r}
+
+```r
 tree <- inner(leaf(1), inner(inner(leaf(2), leaf(3)), leaf(4)))
 ```
 
-```{r}
+
+```r
 cons <- function(car, cdr) list(car = car, cdr = cdr)
 ```
 
-```{r}
+
+```r
 collect_leaves_rec <- function(tree, lst) 
   UseMethod("collect_leaves_rec")
 
@@ -249,7 +295,8 @@ collect_leaves_rec.inner <- function(tree, lst) {
 }
 ```
 
-```{r}
+
+```r
 lst_length <- function(lst) {
   len <- 0
   while (!is.null(lst)) {
@@ -270,25 +317,33 @@ lst_to_list <- function(lst) {
 }
 ```
 
-```{r}
+
+```r
 lst_to_vec <- function(lst) unlist(lst_to_list(lst))
 ```
 
-```{r}
+
+```r
 collect_leaves <- function(tree) {
   lst_to_vec(collect_leaves_rec(tree, NULL))
 }
 collect_leaves(tree)
 ```
 
-```{r}
+```
+## [1] 1 2 3 4
+```
+
+
+```r
 rearrange_matrix_expr.matrix_mult <- function(expr) {
   matrices <- collect_mult_components(expr)
   arrange_optimal_matrix_mult(matrices)
 }
 ```
 
-```{r}
+
+```r
 collect_mult_components_rec <- function(expr, lst)
   UseMethod("collect_mult_components_rec")
 collect_mult_components_rec.default <- function(expr, lst) 
@@ -302,7 +357,8 @@ collect_mult_components <- function(expr)
     lst_to_list(collect_mult_components_rec(expr, NULL))
 ```
 
-```{r}
+
+```r
 A <- matrix(1, nrow = 400, ncol = 300)
 B <- matrix(1, nrow = 300, ncol = 30)
 C <- matrix(1, nrow = 30, ncol = 500)
@@ -311,17 +367,28 @@ D <- matrix(1, nrow = 500, ncol = 400)
 expr <- m(A) * m(B) * m(C) * m(D)
 ```
 
-```{r}
+
+```r
 expr
 ```
 
-```{r}
+```
+## ((([A] * [B]) * [C]) * [D])
+```
+
+
+```r
 rearrange_matrix_expr(expr)
+```
+
+```
+## (([A] * [B]) * ([C] * [D]))
 ```
 
 ## Expression evaluation
 
-```{r}
+
+```r
 eval_matrix_expr <- function(expr) UseMethod("eval_matrix_expr")
 eval_matrix_expr.matrix_data <- function(expr) expr$data
 eval_matrix_expr.matrix_mult <- function(expr)
@@ -330,24 +397,39 @@ eval_matrix_expr.matrix_sum <- function(expr)
   eval_matrix_expr(expr$left) + eval_matrix_expr(expr$right)
 ```
 
-```{r}
+
+```r
 v <- function(expr) eval_matrix_expr(rearrange_matrix_expr(expr))
 ```
 
-```{r}
+
+```r
 fast <- function(expr) {
   v(build_matrix_expr(substitute(expr), parent.frame()))
 }
 ```
 
-```{r}
+
+```r
 all(A %*% B %*% C %*% D == fast(A %*% B %*% C %*% D))
 ```
 
-```{r}
+```
+## [1] TRUE
+```
+
+
+```r
 res <- microbenchmark(A %*% B %*% C %*% D,
                       fast(A %*% B %*% C %*% D))
 options(microbenchmark.unit="relative")
 print(res, signif = 3, order = "mean")
+```
+
+```
+## Unit: relative
+##                       expr  min   lq mean median   uq  max neval
+##  fast(A %*% B %*% C %*% D) 1.00 1.00 1.00    1.0 1.00 1.00   100
+##        A %*% B %*% C %*% D 5.83 5.82 5.62    5.8 5.72 3.52   100
 ```
 
