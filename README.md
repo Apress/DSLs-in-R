@@ -5,6 +5,8 @@ ISBN-10: 1484235878, ISBN-13: 978-1484235874.
 
 ![](cover.jpg)
 
+The source code for each chapter can be downloaded as an R Markdown or an R source file from the links below.
+
 1. Introduction
 2. [Matrix expressions](Matrix-expressions/README.md) [[R source]](Matrix-expressions/README.R)
 
