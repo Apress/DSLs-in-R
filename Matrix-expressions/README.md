@@ -1,8 +1,3 @@
----
-title: "Matrix expressions"
-output: github_document
----
-
 # Matrix expressions
 
 In this chapter we use the following libraries:
@@ -11,6 +6,7 @@ In this chapter we use the following libraries:
 ```r
 library(microbenchmark)
 ```
+
 
 ## Parsing expressions
 
@@ -429,7 +425,7 @@ print(res, signif = 3, order = "mean")
 ```
 ## Unit: relative
 ##                       expr  min   lq mean median   uq  max neval
-##  fast(A %*% B %*% C %*% D) 1.00 1.00 1.00    1.0 1.00 1.00   100
-##        A %*% B %*% C %*% D 5.83 5.82 5.62    5.8 5.72 3.52   100
+##  fast(A %*% B %*% C %*% D) 1.00 1.00 1.00   1.00 1.00 1.00   100
+##        A %*% B %*% C %*% D 5.89 5.88 5.77   5.81 5.81 3.21   100
 ```
 
