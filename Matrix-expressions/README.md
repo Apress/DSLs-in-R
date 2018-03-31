@@ -1,6 +1,6 @@
 # Matrix expressions
 
-In this chapter we use the following libraries:
+This chapter goes through an example of (re-)implementing matrix arithmetic as a DSL. The chapter we use the following libraries:
 
 
 ```r
@@ -426,6 +426,6 @@ print(res, signif = 3, order = "mean")
 ## Unit: relative
 ##                       expr  min   lq mean median   uq  max neval
 ##  fast(A %*% B %*% C %*% D) 1.00 1.00 1.00   1.00 1.00 1.00   100
-##        A %*% B %*% C %*% D 5.89 5.88 5.77   5.81 5.81 3.21   100
+##        A %*% B %*% C %*% D 5.83 5.79 5.62   5.73 5.39 4.87   100
 ```
 

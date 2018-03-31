@@ -1,6 +1,6 @@
 # Matrix expressions
 
-In this chapter we use the following libraries:
+This chapter goes through an example of (re-)implementing matrix arithmetic as a DSL. The chapter we use the following libraries:
 
 ```{r}
 library(microbenchmark)
