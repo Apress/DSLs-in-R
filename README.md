@@ -6,4 +6,4 @@ ISBN-10: 1484235878, ISBN-13: 978-1484235874.
 ![](cover.jpg)
 
 1. Introduction
-2. [Matrix expressions](Matrix-expressions/Matrix-expressions.nb.html)
+2. [Matrix expressions](Matrix-expressions/README.nb.html)
