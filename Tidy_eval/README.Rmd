@@ -1,4 +1,4 @@
-# Tidy evaluation {#sec:tidy-eval}
+# Tidy evaluation 
 
 ```{r}
 library(magrittr)
@@ -88,7 +88,7 @@ rlang::eval_tidy(quote(x + y))
 rlang::eval_tidy(quote(xx), env = list2env(list(xx = 5:8)))
 ```
 
-```{r}
+```{r, error=TRUE}
 rlang::eval_tidy(quo(xx), env = list2env(list(xx = 5:8)))
 ```
 
@@ -205,7 +205,7 @@ make_functions <- function(ex, args) {
 }
 ```
 
-```{r}
+```{r, error=TRUE}
 make_line_expressions(intercept = 0) %>% eval_line(coef = 1)
 ```
 
