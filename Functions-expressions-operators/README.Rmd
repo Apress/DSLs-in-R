@@ -37,7 +37,7 @@ foo(1, 2, 3)
 
 ```{r}
 foo.default <- function(x, y, z) {
-   cat("default foo\\n")
+   cat("default foo\n")
 }
 ```
 
@@ -48,7 +48,7 @@ foo(1, 2, 3)
 
 ```{r}
 foo.numeric <- function(x, y, z) {
-   cat("numeric\\n")
+   cat("numeric\n")
 }
 ```
 
@@ -77,9 +77,9 @@ foo(x, 2, 3)
 ```
 
 ```{r}
-foo.a <- function(x, y, z) cat("a\\n")
-foo.b <- function(x, y, z) cat("b\\n")
-foo.c <- function(x, y, z) cat("c\\n")
+foo.a <- function(x, y, z) cat("a\n")
+foo.b <- function(x, y, z) cat("b\n")
+foo.c <- function(x, y, z) cat("c\n")
 foo(x, 2, 3)
 ```
 
@@ -93,15 +93,15 @@ foo(x, 2, 3)
 
 ```{r}
 foo.a <- function(x, y, z) {
-  cat("a\\n")
+  cat("a\n")
   NextMethod()
 }
 foo.b <- function(x, y, z) {
-  cat("b\\n")
+  cat("b\n")
   NextMethod()
 }
 foo.c <- function(x, y, z) {
-  cat("c\\n")
+  cat("c\n")
   NextMethod()
 }
 ```
@@ -121,7 +121,7 @@ foo(x, 2, 3)
 
 ```{r}
 `+.a` <- function(e1, e2) {
-  cat("+.a\\n")
+  cat("+.a\n")
   NextMethod()
 }
 x + 2
@@ -158,7 +158,7 @@ x + y
 
 ```{r}
 `!.a` <- function(x) {
-  cat("Not for a\\n")
+  cat("Not for a\n")
   NextMethod()
 }
 !x
@@ -167,9 +167,9 @@ x + y
 ```{r}
 `+.a` <- function(e1, e2) {
   if (missing(e2)) {
-    cat("Unary\\n")
+    cat("Unary\n")
   } else {
-    cat("Binary\\n")
+    cat("Binary\n")
   }
   NextMethod()
 }
@@ -184,7 +184,7 @@ class(x) <- "a"
 
 ```{r}
 Ops.c <- function(e1, e2) {
-  cat(paste0("Ops.c (", .Generic, ")\\n"))
+  cat(paste0("Ops.c (", .Generic, ")\n"))
   NextMethod()
 }
 
@@ -236,13 +236,13 @@ Operator      Usual meaning
 ```
 
 ```{r}
-4 %times% cat("foo\\n")
+4 %times% cat("foo\n")
 ```
 
 ```{r}
 2 %times% {
-  cat("foo\\n")
-  cat("bar\\n")
+  cat("foo\n")
+  cat("bar\n")
 }
 ```
 

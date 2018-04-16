@@ -4,9 +4,41 @@
 ```r
 library(purrr)
 library(rlang)
+```
+
+```
+## 
+## Attaching package: 'rlang'
+```
+
+```
+## The following objects are masked from 'package:purrr':
+## 
+##     %@%, %||%, as_function, flatten, flatten_chr, flatten_dbl,
+##     flatten_int, flatten_lgl, invoke, list_along, modify, prepend,
+##     rep_along, splice
+```
+
+```r
 library(magrittr)
 ```
 
+```
+## 
+## Attaching package: 'magrittr'
+```
+
+```
+## The following object is masked from 'package:rlang':
+## 
+##     set_names
+```
+
+```
+## The following object is masked from 'package:purrr':
+## 
+##     set_names
+```
 
 ## Quoting and evaluating
 
@@ -201,26 +233,26 @@ print_expression <- function(expr, indent = "") {
     if (inherits(expr, "srcref")) {
       expr <- paste0("srcref = ", expr)
     }
-    cat(indent, " - ", expr, "\\n")
+    cat(indent, " - ", expr, "\n")
     
   } else if (is.name(expr)) {
     if (expr == "") {
       expr <- "MISSING"
     }
-    cat(indent, " - ", expr, "\\n")
+    cat(indent, " - ", expr, "\n")
     
   } else if (is.primitive(expr)) {
-    cat(indent, " - ", expr, "\\n")
+    cat(indent, " - ", expr, "\n")
     
   } else if (is.pairlist(expr)) {
-    cat(indent, " - ", "[\\n")
+    cat(indent, " - ", "[\n")
     new_indent <- paste0(indent, "       ")
     vars <- names(expr)
     for (i in seq_along(expr)) {
-      cat(indent, "    ", vars[i], " ->\\n")
+      cat(indent, "    ", vars[i], " ->\n")
       print_expression((expr[[i]]), new_indent)
     }
-    cat(indent, "    ]\\n")
+    cat(indent, "    ]\n")
     
   } else {
     print_expression((expr[[1]]), indent)
@@ -238,7 +270,11 @@ print_expression(quote(2 * x + y))
 ```
 
 ```
-##   -  + \n    -  * \n      -  2 \n      -  x \n    -  y \n
+##   -  + 
+##     -  * 
+##       -  2 
+##       -  x 
+##     -  y
 ```
 
 
@@ -247,7 +283,13 @@ print_expression(quote(function(x) x))
 ```
 
 ```
-##   -  function \n    -  [\n        x  ->\n           -  MISSING \n       ]\n    -  x \n    -  srcref = function(x) x \n
+##   -  function 
+##     -  [
+##         x  ->
+##            -  MISSING 
+##        ]
+##     -  x 
+##     -  srcref = function(x) x
 ```
 
 
@@ -256,7 +298,17 @@ print_expression(quote(function(x = 2 * 2 + 4) x))
 ```
 
 ```
-##   -  function \n    -  [\n        x  ->\n           -  + \n             -  * \n               -  2 \n               -  2 \n             -  4 \n       ]\n    -  x \n    -  srcref = function(x = 2 * 2 + 4) x \n
+##   -  function 
+##     -  [
+##         x  ->
+##            -  + 
+##              -  * 
+##                -  2 
+##                -  2 
+##              -  4 
+##        ]
+##     -  x 
+##     -  srcref = function(x = 2 * 2 + 4) x
 ```
 
 ```r
@@ -264,7 +316,19 @@ print_expression(quote(function(x, y = 2 * x) x + y))
 ```
 
 ```
-##   -  function \n    -  [\n        x  ->\n           -  MISSING \n        y  ->\n           -  * \n             -  2 \n             -  x \n       ]\n    -  + \n      -  x \n      -  y \n    -  srcref = function(x, y = 2 * x) x + y \n
+##   -  function 
+##     -  [
+##         x  ->
+##            -  MISSING 
+##         y  ->
+##            -  * 
+##              -  2 
+##              -  x 
+##        ]
+##     -  + 
+##       -  x 
+##       -  y 
+##     -  srcref = function(x, y = 2 * x) x + y
 ```
 
 
@@ -274,7 +338,15 @@ print_expression(expr)
 ```
 
 ```
-##   -  ( \n    -  function \n      -  [\n          x  ->\n             -  MISSING \n         ]\n      -  x \n      -  srcref = function(x) x \n    -  2 \n
+##   -  ( 
+##     -  function 
+##       -  [
+##           x  ->
+##              -  MISSING 
+##          ]
+##       -  x 
+##       -  srcref = function(x) x 
+##     -  2
 ```
 
 ```r

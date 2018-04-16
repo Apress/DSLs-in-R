@@ -80,7 +80,7 @@ foo(1, 2, 3)
 
 ```r
 foo.default <- function(x, y, z) {
-   cat("default foo\\n")
+   cat("default foo\n")
 }
 ```
 
@@ -90,14 +90,14 @@ foo(1, 2, 3)
 ```
 
 ```
-## default foo\n
+## default foo
 ```
 
 
 
 ```r
 foo.numeric <- function(x, y, z) {
-   cat("numeric\\n")
+   cat("numeric\n")
 }
 ```
 
@@ -107,7 +107,7 @@ foo(1, 2, 3)
 ```
 
 ```
-## numeric\n
+## numeric
 ```
 
 
@@ -121,7 +121,7 @@ foo("foo",2,3)
 ```
 
 ```
-## default foo\n
+## default foo
 ```
 
 ```r
@@ -129,7 +129,7 @@ bar("foo",2,3)
 ```
 
 ```
-## numeric\n
+## numeric
 ```
 
 ```r
@@ -137,7 +137,7 @@ bar(1,"bar",3)
 ```
 
 ```
-## default foo\n
+## default foo
 ```
 
 
@@ -147,7 +147,7 @@ foo(x, 2, 3)
 ```
 
 ```
-## numeric\n
+## numeric
 ```
 
 
@@ -157,19 +157,19 @@ foo(x, 2, 3)
 ```
 
 ```
-## default foo\n
+## default foo
 ```
 
 
 ```r
-foo.a <- function(x, y, z) cat("a\\n")
-foo.b <- function(x, y, z) cat("b\\n")
-foo.c <- function(x, y, z) cat("c\\n")
+foo.a <- function(x, y, z) cat("a\n")
+foo.b <- function(x, y, z) cat("b\n")
+foo.c <- function(x, y, z) cat("c\n")
 foo(x, 2, 3)
 ```
 
 ```
-## a\n
+## a
 ```
 
 
@@ -179,7 +179,7 @@ foo(x, 2, 3)
 ```
 
 ```
-## b\n
+## b
 ```
 
 ```r
@@ -188,21 +188,21 @@ foo(x, 2, 3)
 ```
 
 ```
-## c\n
+## c
 ```
 
 
 ```r
 foo.a <- function(x, y, z) {
-  cat("a\\n")
+  cat("a\n")
   NextMethod()
 }
 foo.b <- function(x, y, z) {
-  cat("b\\n")
+  cat("b\n")
   NextMethod()
 }
 foo.c <- function(x, y, z) {
-  cat("c\\n")
+  cat("c\n")
   NextMethod()
 }
 ```
@@ -214,7 +214,10 @@ foo(x, 2, 3)
 ```
 
 ```
-## a\nb\nc\ndefault foo\n
+## a
+## b
+## c
+## default foo
 ```
 
 ```r
@@ -223,7 +226,10 @@ foo(x, 2, 3)
 ```
 
 ```
-## b\na\nc\ndefault foo\n
+## b
+## a
+## c
+## default foo
 ```
 
 ```r
@@ -232,7 +238,10 @@ foo(x, 2, 3)
 ```
 
 ```
-## c\nb\na\ndefault foo\n
+## c
+## b
+## a
+## default foo
 ```
 
 ### Operator overloading
@@ -240,14 +249,14 @@ foo(x, 2, 3)
 
 ```r
 `+.a` <- function(e1, e2) {
-  cat("+.a\\n")
+  cat("+.a\n")
   NextMethod()
 }
 x + 2
 ```
 
 ```
-## +.a\n
+## +.a
 ```
 
 ```
@@ -262,7 +271,7 @@ x + 3
 ```
 
 ```
-## +.a\n
+## +.a
 ```
 
 ```
@@ -276,7 +285,7 @@ x + 3
 ```
 
 ```
-## +.a\n
+## +.a
 ```
 
 ```
@@ -294,7 +303,7 @@ x + y
 ```
 
 ```
-## +.a\n
+## +.a
 ```
 
 ```
@@ -308,7 +317,7 @@ y + x
 ```
 
 ```
-## +.a\n
+## +.a
 ```
 
 ```
@@ -358,7 +367,8 @@ x + 2
 ```
 
 ```
-## +.a\n+.b
+## +.a
+## +.b
 ```
 
 ```
@@ -384,14 +394,14 @@ x + y
 
 ```r
 `!.a` <- function(x) {
-  cat("Not for a\\n")
+  cat("Not for a\n")
   NextMethod()
 }
 !x
 ```
 
 ```
-## Not for a\n
+## Not for a
 ```
 
 ```
@@ -402,9 +412,9 @@ x + y
 ```r
 `+.a` <- function(e1, e2) {
   if (missing(e2)) {
-    cat("Unary\\n")
+    cat("Unary\n")
   } else {
-    cat("Binary\\n")
+    cat("Binary\n")
   }
   NextMethod()
 }
@@ -414,7 +424,7 @@ class(x) <- "a"
 ```
 
 ```
-## Unary\n
+## Unary
 ```
 
 ```
@@ -428,7 +438,7 @@ class(x) <- "a"
 ```
 
 ```
-## Binary\n
+## Binary
 ```
 
 ```
@@ -443,7 +453,7 @@ class(x) <- "a"
 
 ```r
 Ops.c <- function(e1, e2) {
-  cat(paste0("Ops.c (", .Generic, ")\\n"))
+  cat(paste0("Ops.c (", .Generic, ")\n"))
   NextMethod()
 }
 
@@ -453,7 +463,7 @@ z + 1
 ```
 
 ```
-## Ops.c (+)\n
+## Ops.c (+)
 ```
 
 ```
@@ -467,7 +477,7 @@ z + 1
 ```
 
 ```
-## Ops.c (+)\n
+## Ops.c (+)
 ```
 
 ```
@@ -481,7 +491,7 @@ z ^ 3
 ```
 
 ```
-## Ops.c (^)\n
+## Ops.c (^)
 ```
 
 ```
@@ -497,7 +507,7 @@ class(z) <- c("a", "c")
 ```
 
 ```
-## Binary\n
+## Binary
 ```
 
 ```
@@ -511,7 +521,7 @@ class(z) <- c("a", "c")
 ```
 
 ```
-## Ops.c (*)\n
+## Ops.c (*)
 ```
 
 ```
@@ -557,22 +567,28 @@ Operator      Usual meaning
 
 
 ```r
-4 %times% cat("foo\\n")
+4 %times% cat("foo\n")
 ```
 
 ```
-## foo\nfoo\nfoo\nfoo\n
+## foo
+## foo
+## foo
+## foo
 ```
 
 
 ```r
 2 %times% {
-  cat("foo\\n")
-  cat("bar\\n")
+  cat("foo\n")
+  cat("bar\n")
 }
 ```
 
 ```
-## foo\nbar\nfoo\nbar\n
+## foo
+## bar
+## foo
+## bar
 ```
 

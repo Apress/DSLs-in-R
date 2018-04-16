@@ -32,7 +32,7 @@ x <- 2
 y <- 3
 f(2 * x + y)
 
-## ------------------------------------------------------------------------
+## ---- error=TRUE---------------------------------------------------------
 f <- function(expr) {
   expr <- quote(expr)
   expr[[1]]
@@ -66,7 +66,7 @@ g <- function(expr) {
 x <- 2; y <- 3
 f(2 * x + y)
 
-## ------------------------------------------------------------------------
+## ---- error=TRUE---------------------------------------------------------
 g(2 * x + y)
 
 ## ------------------------------------------------------------------------
@@ -82,26 +82,26 @@ print_expression <- function(expr, indent = "") {
     if (inherits(expr, "srcref")) {
       expr <- paste0("srcref = ", expr)
     }
-    cat(indent, " - ", expr, "\\n")
+    cat(indent, " - ", expr, "\n")
     
   } else if (is.name(expr)) {
     if (expr == "") {
       expr <- "MISSING"
     }
-    cat(indent, " - ", expr, "\\n")
+    cat(indent, " - ", expr, "\n")
     
   } else if (is.primitive(expr)) {
-    cat(indent, " - ", expr, "\\n")
+    cat(indent, " - ", expr, "\n")
     
   } else if (is.pairlist(expr)) {
-    cat(indent, " - ", "[\\n")
+    cat(indent, " - ", "[\n")
     new_indent <- paste0(indent, "       ")
     vars <- names(expr)
     for (i in seq_along(expr)) {
-      cat(indent, "    ", vars[i], " ->\\n")
+      cat(indent, "    ", vars[i], " ->\n")
       print_expression((expr[[i]]), new_indent)
     }
-    cat(indent, "    ]\\n")
+    cat(indent, "    ]\n")
     
   } else {
     print_expression((expr[[1]]), indent)
@@ -271,7 +271,7 @@ f <- call("function",
           quote(2 * x + y))
 f
 
-## ------------------------------------------------------------------------
+## ---- error=TRUE---------------------------------------------------------
 f(2, 3)
 
 ## ------------------------------------------------------------------------
