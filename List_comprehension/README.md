@@ -1,0 +1,238 @@
+# List comprehension
+
+We will now use what we have learned to implement a very valuable language construction that is not built into R: *list comprehension*. List comprehensions provide a syntax for mapping and filtering sequences. In R we would use functions such as `Map` or `Filter`, or the `purrr` alternatives, for this, but in languages such as Haskell or Python, there is syntactic sugar to make combinations of mapping and filtering easier to program.
+
+Take an algorithm such as quicksort. Here, the idea is to sort a list by picking a random element in it, called the *pivot*, splitting the data into those elements smaller than the pivot, equal to the pivot and larger than the pivot. We then sort those smaller and larger elements recursively and concatenate the three lists to get the final sorted list. One way to implement this in R is using the `Filter` function:
+
+
+```r
+qsort <- function(lst) {
+  n <- length(lst)
+  if (n < 2) return(lst)
+  
+  pivot <- lst[[sample(n, size = 1)]]
+  smaller <- Filter(function(x) x < pivot, lst)
+  equal <- Filter(function(x) x == pivot, lst)
+  larger <- Filter(function(x) x > pivot, lst)
+  c(qsort(smaller), equal, qsort(larger))
+}
+(lst <- sample(1:10))
+```
+
+```
+##  [1]  3  1  9  7 10  5  8  2  6  4
+```
+
+```r
+unlist(qsort(lst))
+```
+
+```
+##  [1]  1  2  3  4  5  6  7  8  9 10
+```
+
+It is not exactly unreadable if you are familiar with functional programming, but it does take some decoding to work out the `Filter` expression and decode the predicate used in it. Compare this to a Python implementation that does exactly the same thing (except that the pivot isn’t chosen randomly because sampling requires a bit more in Python):
+
+```python
+def qsort(lst):
+    if len(lst) < 2:
+        return lst
+    pivot = lst[0]
+    return qsort([x for x in lst if x < pivot]) + \
+                 [x for x in lst if x == pivot] + \
+           qsort([x for x in lst if x > pivot])
+```
+
+Or consider a similar Haskell implementation:
+
+```haskell
+qsort lst = 
+    if length lst < 2 then 
+        lst
+    else
+        let pivot = lst !! 0
+        in qsort([x | x <- lst, x < pivot]) ++ 
+                 [x | x <- lst, x == pivot] ++ 
+           qsort([x | x <- lst, x > pivot])
+```
+
+Expressions such as 
+```python
+    [x for x in lst if x < pivot]
+```
+in Python or
+```Haskell
+    [x | x <- lst, x < pivot]
+```
+in Haskell is what we call list comprehension. List comprehensions consist of three components, first an expression that will be evaluated for each element in the list (or lists if we use more than one), then one or more lists to map over, and finally zero or more predicates we use to filter over. It is thus a combination of `Map` and `Filter` calls in one expression.
+
+
+
+Using non-standard evaluation, we can write an R function that provides a similar list comprehension syntax. We will write it such that its first argument must be an expression that we evaluate for all elements in the input list(s) and such that its remaining elements either identify lists or predicates. We will use named arguments to identify when an argument defines a list and unnamed arguments for predicates.
+
+The function will work as follows: we take the first argument and make it into a quosure, so we have the expression plus the environment we define it in. We do the same with the rest of the arguments, captured by the three-dots parameter since we want the function to take an arbitrary number of arguments. We create the first quosure with `enquo` and the list of additional arguments with `quos`. These, we then split into list arguments and predicates based on whether they are named arguments or not. While doing this, we evaluate the named arguments to get the data in the input lists and extract the expressions for the predicates using `get_expr`.
+
+With the functions we create, both predicates and the function we use to map over the lists, we have to be a little careful about which context the expression should be evaluated in. We want the expressions to be the body of functions we can map over the lists, so we can’t evaluate them in the quosures’ environments directly, but we do want those environments to be in scope so the expression can see variables that are not part of the list comprehension. We, therefore, get the raw expression from the quosure using the `get_expr` function, but functions we create from them will have the quosure environment as their enclosing scope.
+
+We create one function per predicate and one for the main expression of the list comprehension. It is not straightforward to combine all the predicates in a filter expression to map over all the lists, but it is straightforward to use them to update a boolean vector where we keep track of which values to include in the final result. We can mask these together while applying the predicates one at a time. We can then map over the input lists and subset each of them—in the code below I use a lambda expression as these are defined in the `purrr` package, as formulas where `.x` refers to the first argument. After filtering the lists, we can apply the main function over them and get the final results.
+
+Putting all this together gives us this function:
+
+
+```r
+library(rlang)
+library(purrr)
+```
+
+```
+## 
+## Attaching package: 'purrr'
+```
+
+```
+## The following objects are masked from 'package:rlang':
+## 
+##     %@%, %||%, as_function, flatten, flatten_chr, flatten_dbl,
+##     flatten_int, flatten_lgl, invoke, list_along, modify, prepend,
+##     rep_along, splice
+```
+
+```r
+lc <- function(expr, ...) {
+  expr <- enquo(expr)
+  rest <- quos(...)
+  
+  lists <- map(rest[names(rest) != ""], eval_tidy)
+  predicates <- map(rest[names(rest) == ""], get_expr)
+  
+  keep_index <- rep(TRUE, length(lists[[1]]))
+  for (pred in predicates) {
+    p <- new_function(lists, body = pred, env = get_env(expr))
+    keep_index <- keep_index & unlist(pmap(lists, p))
+  }
+  filtered_lists <- map(lists, ~.x[keep_index])
+  
+  f <- new_function(lists, body = get_expr(expr), env = get_env(expr))
+  pmap(filtered_lists, f)
+}
+```
+
+We can use it to implement quick sort like this:
+
+
+```r
+qsort <- function(lst) {
+  n <- length(lst)
+  if (n < 2) return(lst)
+  
+  pivot <- lst[[sample(n, size = 1)]]
+  smaller <- lc(x, x = lst, x < pivot)
+  equal <- lc(x, x = lst, x == pivot)
+  larger <- lc(x, x = lst, x > pivot)
+  
+  c(qsort(smaller), equal, qsort(larger))
+}
+
+(lst <- sample(1:10))
+```
+
+```
+##  [1]  3  4  5  1  9  8  2  7 10  6
+```
+
+```r
+unlist(qsort(lst))
+```
+
+```
+##  [1]  1  2  3  4  5  6  7  8  9 10
+```
+
+In this function, we only use the filtering aspects of the list comprehension, but we can use the `lc` function in more complex expressions. As a cute little example, we can use `lc` to compute the primes less than a given number `n`.
+
+
+```r
+not_primes <- lc(seq(from = 2*x, to = 100, by = x), x = 2:10) %>% 
+    unlist %>% unique
+not_primes
+```
+
+```
+##  [1]   4   6   8  10  12  14  16  18  20  22  24  26  28  30  32  34  36
+## [18]  38  40  42  44  46  48  50  52  54  56  58  60  62  64  66  68  70
+## [35]  72  74  76  78  80  82  84  86  88  90  92  94  96  98 100   9  15
+## [52]  21  27  33  39  45  51  57  63  69  75  81  87  93  99  25  35  55
+## [69]  65  85  95  49  77  91
+```
+
+```r
+primes <- lc(p, p = 2:100, !(p %in% not_primes)) %>% unlist
+primes
+```
+
+```
+##  [1]  2  3  5  7 11 13 17 19 23 29 31 37 41 43 47 53 59 61 67 71 73 79 83
+## [24] 89 97
+```
+
+This is a variant of the Sieve of Eratosthenes algorithm. We compute all the numbers that are not primes (because they are multiples of the numbers) and then we identify the numbers that are not in that list. We let `x` go from two to 10—to identify the primes less than $n$ it suffices to do this up to $\\sqrt{n}$, and for each of those we create a list of the various multiples of `x`. We then get rid of duplicates to make the next step faster; in that step, we simply filter on the numbers that are not primes.
+
+A solution for general $n$ would look like this: 
+
+
+```r
+get_primes <- function(n) {
+  not_primes <- lc(seq(from = 2*x, to = n, by = x), x = 2:sqrt(n)) %>% 
+      unlist %>% unique
+  lc(p, p = 2:n, !(p %in% not_primes)) %>% unlist
+}
+get_primes(100)
+```
+
+```
+##  [1]  2  3  5  7 11 13 17 19 23 29 31 37 41 43 47 53 59 61 67 71 73 79 83
+## [24] 89 97
+```
+
+Traditionally, the algorithm doesn’t create a list of non-primes first but rather starts with a list of candidates for being primes—all numbers from 2 to $n$. Iteratively, we then take the first element in the list, which is a prime, and remove as candidates all elements divisible by that number. We can also implement this version using a list comprehension to remove candidates:
+
+
+```r
+get_primes <- function(n) {
+  candidates <- 2:n
+  primes <- NULL
+  while (length(candidates) > 0) {
+    p <- candidates[[1]]
+    primes <- cons(p, primes)
+    candidates <- lc(x, x = candidates, x %% p != 0)
+  }
+  primes %>% lst_to_list %>% unlist %>% rev
+}
+get_primes(100) 
+```
+
+```
+## Error in cons(p, primes): could not find function "cons"
+```
+
+As another example, where we have more than one list as input and where we use a list comprehension to construct new values rather than filter the lists, we can implement a function for zipping two lists like this:
+
+
+```r
+zip <- function(x, y) {
+  lc(c(x,y), x = x, y = y) %>% { do.call(rbind,.) }
+}
+zip(1:4,1:4)
+```
+
+```
+##      [,1] [,2]
+## [1,]    1    1
+## [2,]    2    2
+## [3,]    3    3
+## [4,]    4    4
+```
+
+Here, we pair up elements from lists `x` and `y` in the list comprehension, and we then merge the lists using `bind`. The combination of `do.call` and `bind` is necessary to get a table out of this, and the curly braces are necessary to make the result of `lc` into the second and not the first argument of `do.call`. See the `magrittr` documentation for how curly braces are used together with the pipeline operator.
+
+List comprehension is another example of how very little code can create a new language construct. It might be stretching it a bit to call this a language, but we *are* creating a new syntax to help us write more readable code. That is if you consider list comprehension more readable than combinations of `map` and `filter`, of course.

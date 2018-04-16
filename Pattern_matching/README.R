@@ -1,0 +1,462 @@
+## ---- echo=FALSE---------------------------------------------------------
+suppressPackageStartupMessages(library(magrittr, quietly = TRUE))
+suppressPackageStartupMessages(library(rlang, quietly = TRUE))
+suppressPackageStartupMessages(library(dplyr, quietly = TRUE))
+
+## ------------------------------------------------------------------------
+make_args_list <- function(args) {
+  res <- replicate(length(args), substitute())
+  names(res) <- args
+  as.pairlist(res)
+}
+
+## ------------------------------------------------------------------------
+`:=` <- function(data_type, constructors) {
+  data_type <- enquo(data_type)
+  constructors <- enexpr(constructors)
+
+  stopifnot(quo_is_symbol(data_type))
+  data_type_name <- quo_name(data_type)
+  process_alternatives(
+    constructors, 
+    data_type_name, 
+    get_env(data_type)
+  )
+
+  assign(paste0("toString.", data_type_name),
+         deparse_construction, envir = get_env(data_type))
+  assign(paste0("print.", data_type_name),
+         construction_printer, envir = get_env(data_type))
+}
+
+## ------------------------------------------------------------------------
+process_alternatives <- function(constructors,
+                                 data_type_name,
+                                 env) {
+  if (is_lang(constructors) && constructors[[1]] == "|") {
+    process_alternatives(
+      constructors[[2]],
+      data_type_name,
+      env
+    )
+    process_alternatives(
+      constructors[[3]],
+      data_type_name,
+      env
+    )
+  } else {
+    process_constructor(
+      constructors,
+      data_type_name,
+      env
+    )
+  }
+}
+
+## ------------------------------------------------------------------------
+process_constructor <- function(constructor, 
+                                data_type_name,
+                                env) {
+  if (is_lang(constructor)) {
+    process_constructor_function(
+      constructor,
+      data_type_name,
+      env
+    )
+  } else {
+    process_constructor_constant(
+      constructor,
+      data_type_name,
+      env
+    )
+  }
+}
+
+## ------------------------------------------------------------------------
+process_constructor_constant <- function(constructor,
+                                         data_type_name, 
+                                         env) {
+  stopifnot(is_symbol(constructor))
+  constructor_name <- as_string(constructor)
+  constructor_object <- structure(
+    NA,
+    constructor_constant = constructor_name,
+    class = data_type_name
+  )
+  assign(constructor_name, constructor_object, envir = env)
+}
+
+## ------------------------------------------------------------------------
+process_arguments <- function(constructor_arguments) {
+  process_arg <- function(argument) {
+    if (is_lang(argument)) {
+      stopifnot(argument[[1]] == ":")
+      arg <- quo_name(argument[[2]])
+      type <- quo_name(argument[[3]])
+      tibble::tibble(arg = arg, type = type)
+    } else {
+      arg <- quo_name(argument)
+      tibble::tibble(arg = arg, type = NA)
+    }
+  }
+  constructor_arguments %>% 
+    as.list %>% 
+    purrr::map(process_arg) %>%   
+    bind_rows
+}
+
+## ------------------------------------------------------------------------
+process_constructor_function <- function(constructor,
+                                         data_type_name,
+                                         env) {
+  stopifnot(is_lang(constructor))
+  constructor_name <- quo_name(constructor[[1]])
+  constructor_arguments <- process_arguments(constructor[-1])
+
+  # Create the constructor function
+  constructor <- function() {
+    args <- as_list(environment())
+
+    # Type check!
+    stopifnot(length(args) == length(constructor_arguments$arg))
+    for (i in seq_along(args)) {
+      arg <- args[[constructor_arguments$arg[i]]]
+      type <- constructor_arguments$type[i]
+      stopifnot(is_na(type) || inherits(arg, type))
+    }
+
+    structure(args,
+              constructor = constructor_name,
+              class = data_type_name)
+  }
+  formals(constructor) <- make_args_list(constructor_arguments$arg)
+
+  # Set meta information about the constructor
+  class(constructor) <- c("constructor", "function")
+
+  # Put the constructor in the binding scope
+  assign(constructor_name, constructor, envir = env)
+}
+
+## ------------------------------------------------------------------------
+deparse_construction <- function(object) {
+  constructor_name <- attr(object, "constructor")
+  if (is_null(constructor_name)) {
+    # This is not a constructor, so just get the value
+    return(toString(object))
+  }
+
+  if (is_list(object)) {
+    components <- names(object)
+    values <- as_list(object) %>% purrr::map(deparse_construction)
+
+    print_args <- vector("character", length = length(components))
+    for (i in seq_along(components)) {
+      print_args[i] <- paste0(components[i], "=", values[i])
+    }
+    print_args <- paste0(print_args, collapse = ", ")
+    paste0(constructor_name, "(", print_args, ")")
+
+  } else {
+    constructor_name
+  }
+}
+construction_printer <- function(x, ...) {
+  cat(deparse_construction(x), "\\n")
+}
+
+## ------------------------------------------------------------------------
+tree := T(left : tree, right : tree) | L(value : numeric)
+
+## ------------------------------------------------------------------------
+x <- T(T(L(1),L(2)),L(3))
+x
+
+## ------------------------------------------------------------------------
+x$left$left$value
+x$left$right$value
+x$right$value
+
+## ------------------------------------------------------------------------
+L(1L)
+
+## ------------------------------------------------------------------------
+tree := T(left : tree, right : tree) | L(value)
+L(1L)
+
+## ---- echo=FALSE---------------------------------------------------------
+#install.packages("pmatch")
+suppressPackageStartupMessages(library(pmatch, quietly = TRUE))
+
+## ------------------------------------------------------------------------
+cases(L(1),
+      L(v) -> v,
+      T(L(v), L(w)) -> v + w,
+      otherwise -> 5)
+
+## ------------------------------------------------------------------------
+cases(T(L(4), L(5)),
+      L(v) -> v,
+      T(L(v), L(w)) -> v + w,
+      otherwise -> 5)
+
+## ------------------------------------------------------------------------
+cases(T(L(1), T(L(4), L(5))),
+      L(v) -> v,
+      T(L(v), L(w)) -> v + w,
+      otherwise -> 5)
+
+## ------------------------------------------------------------------------
+cases <- function(expr, ...) {
+  matchings <- quos(...)
+
+  for (i in seq_along(matchings)) {
+    eval_env <- get_env(matchings[[i]])
+    match_expr <- quo_expr(matchings[[i]])
+    stopifnot(match_expr[[1]] == "<-")
+
+    test_expr <- match_expr[[3]]
+    result_expr <- match_expr[[2]]
+
+    match <- test_pattern(expr, test_expr, eval_env)
+    if (!is_null(match))
+      return(eval_tidy(result_expr, data = match, env = eval_env))
+  }
+
+  stop("No matching pattern!")
+}
+
+## ------------------------------------------------------------------------
+test_pattern <- function(expr, test_expr, eval_env) {
+  # Environment in which to store matched variables
+  match_env <- env()
+
+  if (test_expr == quote(otherwise))
+    return(match_env)
+
+  # Test pattern
+  tester <- function(escape)
+    test_pattern_rec(escape, expr, test_expr, 
+                     eval_env, match_env)
+  callCC(tester)
+}
+
+## ------------------------------------------------------------------------
+test_pattern_rec <- function(escape, expr, test_expr,
+                             eval_env, match_env) {
+
+  # Is this a function-constructor?
+  if (is_lang(test_expr)) {
+    func <- get(as_string(test_expr[[1]]), eval_env)
+    
+    if (inherits(func, "constructor")) {
+      # This is a constructor.
+      # Check if it is the right kind
+      constructor <- as_string(test_expr[[1]])
+      expr_constructor <- attr(expr, "constructor")
+      if (is_null(expr_constructor) || 
+          constructor != expr_constructor)
+        escape(NULL) # wrong type
+
+      # Now check recursively
+      for (i in seq_along(expr)) {
+        test_pattern_rec(
+          escape, 
+          expr[[i]], test_expr[[i+1]],
+          eval_env, match_env
+        )
+      }
+
+      # If we get here, the matching was successfull
+      return(match_env)
+    }
+  }
+
+  # Is this a constant-constructor?
+  if (is_symbol(test_expr) && 
+      exists(as_string(test_expr), eval_env)) {
+    constructor <- as_string(test_expr)
+    val <- get(constructor, eval_env)
+    val_constructor <- attr(val, "constructor_constant")
+    if (!is_null(val_constructor)) {
+      expr_constructor <- attr(expr, "constructor")
+      if (is_null(expr) || constructor != expr_constructor)
+        escape(NULL) # wrong type
+      else
+        return(match_env) # Successfull match
+    }
+  }
+
+  # Not a constructor.
+  # Must be a value to compare with or a variable to bind to
+  if (is_symbol(test_expr)) {
+    assign(as_string(test_expr), expr, match_env)
+  } else {
+    value <- eval_tidy(test_expr, eval_env)
+    if (expr != value) escape(NULL)
+  }
+
+  match_env
+}
+
+## ------------------------------------------------------------------------
+x <- 1
+y <- 2
+cases(L(1),
+      L(!!x) -> "x",
+      L(!!y) -> "y")
+
+## ------------------------------------------------------------------------
+dft <- function(tree) {
+  cases(tree,
+        L(v) -> v,
+        T(left, right) -> dft(left) + dft(right))
+}
+
+dft(L(1))
+dft(T(L(1),L(2)))
+dft(T(T(L(1),L(2)),L(3)))
+
+## ------------------------------------------------------------------------
+linked_list := NIL | CONS(car, cdr : linked_list)
+
+## ------------------------------------------------------------------------
+reverse_list <- function(lst, acc = NIL) {
+  force(acc)
+  cases(lst,
+        NIL -> acc,
+        CONS(car, cdr) -> reverse_list(cdr, CONS(car, acc)))
+}
+
+## ------------------------------------------------------------------------
+list_length <- function(lst, acc = 0) {
+  force(acc)
+  cases(lst,
+        NIL -> acc,
+        CONS(car, cdr) -> list_length(cdr, acc + 1))
+}
+
+## ------------------------------------------------------------------------
+list_to_vector <- function(lst) {
+  n <- list_length(lst)
+  v <- vector("list", length = n)
+  f <- function(lst, i) {
+    force(i)
+    cases(lst,
+          NIL -> NULL,
+          CONS(car, cdr) -> {
+            v[[i]] <<- car
+            f(cdr, i + 1)
+            }
+          )
+  }
+  f(lst, 1)
+  v %>% unlist
+}
+
+## ------------------------------------------------------------------------
+vector_to_list <- function(vec) {
+  lst <- NIL
+  for (i in seq_along(vec)) {
+    lst <- CONS(vec[[i]], lst)
+  }
+  reverse_list(lst)
+}
+
+## ------------------------------------------------------------------------
+lst <- vector_to_list(1:5)
+list_length(lst)
+list_to_vector(lst)
+lst %>% reverse_list %>% list_to_vector
+
+## ------------------------------------------------------------------------
+search_tree := 
+  E | T(left : search_tree, value, right : search_tree)
+
+## ------------------------------------------------------------------------
+insert <- function(tree, x) {
+  cases(tree,
+        E -> T(E, x, E),
+        T(left, val, right) -> {
+          if (x < val)
+            T(insert(left, x), val, right)
+          else if (x > val)
+            T(left, val, insert(right, x))
+          else
+            T(left, x, right)
+        })
+}
+
+member <- function(tree, x) {
+  cases(tree,
+        E -> FALSE,
+        T(left, val, right) -> {
+          if (x < val) member(left, x)
+          else if (x > val) member(right, x)
+          else TRUE
+        })
+}
+
+## ------------------------------------------------------------------------
+tree <- E
+for (i in sample(2:4))
+  tree <- insert(tree, i)
+
+## ------------------------------------------------------------------------
+for (i in 1:6) {
+  cat(i, " : ", member(tree, i), "\\n")
+}
+
+## ------------------------------------------------------------------------
+colour :=
+  R | B
+
+## ------------------------------------------------------------------------
+rb_tree :=
+  E | T(col : colour, left : rb_tree, value, right : rb_tree)
+
+## ------------------------------------------------------------------------
+member <- function(tree, x) {
+  cases(tree,
+        E -> FALSE,
+        T(col, left, val, right) -> {
+          if (x < val) member(left, x)
+          else if (x > val) member(right, x)
+          else TRUE
+        })
+}
+
+tree <- T(R, E, 2, T(B, E, 5, E))
+for (i in 1:6) {
+  cat(i, " : ", member(tree, i), "\\n")
+}
+
+## ------------------------------------------------------------------------
+insert_rec <- function(tree, x) {
+  cases(tree,
+        E -> T(R, E, x, E),
+        T(col, left, val, right) -> {
+          if (x < val)
+            balance(T(col, insert_rec(left, x), val, right))
+          else if (x > val)
+            balance(T(col, left, val, insert_rec(right, x)))
+          else
+            T(col, left, x, right) # already here
+        })
+}
+insert <- function(tree, x) {
+  tree <- insert_rec(tree, x)
+  tree$col <- B
+  tree
+}
+
+## ------------------------------------------------------------------------
+balance <- function(tree) {
+  cases(tree,
+        T(B,T(R,a,x,T(R,b,y,c)),z,d) -> T(R,T(B,a,x,b),y,T(B,c,z,d)),
+        T(B,T(R,T(R,a,x,b),y,c),z,d) -> T(R,T(B,a,x,b),y,T(B,c,z,d)),
+        T(B,a,x,T(R,b,y,T(R,c,z,d))) -> T(R,T(B,a,x,b),y,T(B,c,z,d)),
+        T(B,a,x,T(R,T(R,b,y,c),z,d)) -> T(R,T(B,a,x,b),y,T(B,c,z,d)),
+        otherwise -> tree)
+}
+
