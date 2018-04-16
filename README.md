@@ -12,4 +12,6 @@ The source code for each chapter can be downloaded as an R Markdown or an R sour
 3. [Components of a programming language](Components-of-a-language/README.md) [[R source]](Components-of-a-language/README.R)
 4. [Functions, classes and operators](Functions-expressions-operators/README.md) [[R source]](Functions-expressions-operators/README.R)
 5. [Parsing and manipulating expressions](Parsing_and_manipulating_expressions/README.md) [[R source]](Parsing_and_manipulating_expressions/README.R)
+6. [Lambda expressions](Lambda/README.md) [[R source]](Lambda/README.R)
+7. 
 
