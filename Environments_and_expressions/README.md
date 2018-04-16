@@ -1,10 +1,5 @@
 # Environments and expressions {#sec:env_and_expr}
 
-We have already used environments in a couple of examples to evaluate expressions in a different context than where we usually evaluate them, which is known as *non-standard evaluation*. Many domain-specific languages that we could implement in R will need some variety of non-standard evaluation, but getting the evaluation to occur in the right context can be problematic. The rules for how expressions are evaluated are simple, but the way evaluation contexts, which are chains of environments, can be complicated.
-
-We will use the `rlang` package:
-
-
 
 ```r
 library(rlang)
@@ -12,10 +7,6 @@ library(rlang)
 
 
 ## Scopes and environments
-
-R evaluates an expression in a *scope* that determines which value any given variable refers to. In the standard evaluation, R uses what is known as *lexical scope*. This essentially means that variables in an expression are referring to the variables defined in the blocks around the expression. If you write an expression at the outermost level of an R script, or in the *global environment*, then variable names in the expression refer to global variables. An expression inside a function, on the other hand, is evaluated in the scope of a function execution, which means that variable symbols refer to local variables or function parameters if these are defined; only if they are not defined do they refer to global variables. A function defined inside another function will have a *nested scope*—variables in an expression there will first be searched for in the innermost function, then the surrounding function, and only if they are not found either place, in the global environment.
-
-Consider this abstract example:
 
 
 ```r
@@ -41,13 +32,6 @@ h()
 ## [1] 7
 ```
 
-In the example, we define four variables in the global environment, `x`, `f`, `g`, and `h`. In the function `f` we have one formal parameter, `y`, and one local variable `z`. Whenever we call `f`, a scope where `y` exists is created, and the first statement in the function call adds `z` to this scope. The function returns another function, a closure, that contains an expression that refers to variable `x`, `y`, and `z`. If we call this function, which we do when we call functions `g` and `h` that are the results of two separate calls to `f`, we will evaluate this expression. When R evaluates the expression, it needs to find the three variables. They are neither formal arguments or local variables in the functions we call (`g` and `h`), but since the functions were created inside calls to `f`, they can see `y` and `z` in their surrounding scope. Both can find `x` in the global environment. Since `g` and `h` are the results of separate calls to `f`, the surrounding scope of calls to them are *different* instances of local scopes of `f`.
-
-Scopes are implemented through *environments*, and even though the rules that guide environments and evaluation are straightforward, you have to be careful if you start manipulating them. You can think of environments as tables that map variables to values. Also, all environments have a parent environment, an enclosing scope, that R will search in if a variable is not found when it searches the first environment. Environments thus have a tree structure that usually follows nested scopes, and that ends in a root in the *empty environment*. Packages you load are put on top of this environment, and on top of all loaded environments, we have the *global environment*—which is why you can find variables define in packages if you search in the global environment.
-
-Strictly speaking, there are a few other details on how packages and environments interact I do not include in this view on environments, but they are not important for the discussion here. If you are interested, you can find a description of this in my other book, *Meta-programming in R* [@Mailund:2017iia]. For this book, we will simply assume that everything we define at the global level or any package is found in the global environment and consider this the root of the environment tree.
-
-When we define new functions, we do not create new environments, but we do associate the functions with one—the environment in which we define the function. When we defined function `f` in the example above, it got associated with the global environment, because that is where we defined it. We can get the environment a function is associated with using the `environment` function:
 
 
 ```r
@@ -58,15 +42,12 @@ environment(f)
 ## <environment: R_GlobalEnv>
 ```
 
-Since `f` is defined at the global level, its environment is the global environment. When we make a function call, we create a new environment called the execution environment. This environment is where we store parameters and local variables. The environment associated with the function will be the *parent environment* for this execution environment. When we call function `f`, we thus create an environment where we get a mapping from `y` and `z` to their values and with a parent environment that is the global environment, in which we can find the variable `x`. Inside the call to `f`, we create a new (anonymous) function and return it. This function will also have an environment associated with it, but this time it is the local environment we created when we called `f`. Thus, the environments associated with `g` and `h` are two different environments as they are the result of two different calls to `f`.
-
-
 ```r
 environment(g)
 ```
 
 ```
-## <environment: 0x7fb52ab56a60>
+## <environment: 0x7fe8db839150>
 ```
 
 ```r
@@ -74,26 +55,11 @@ environment(h)
 ```
 
 ```
-## <environment: 0x7fb52b276260>
+## <environment: 0x7fe8db851958>
 ```
 
-Functions defined inside other functions thus carry along with them the environments that were created when the surrounding function was called and if we return them from the surrounding function, they still carry this enclosing scope along with them. Since they remember the local variable and parameters from the enclosing scope, we call such functions *closures*.
-
-In [@fig:calling-g-environments] I have drawn a simplified graph that shows which environments exist and how they are wired together in the example at the point where we call function `g`. I show environments with a grey background, variables as circles with pointers to the values the variables refer to, and functions as the three components that define a function: the formal parameters, the function body, and the enclosing scope—the environment associated with the function.
-
-The enclosing environment for function `f` is the global environment, while the enclosing scopes of `g` and `h` are the two different instances of calls to `f`. These instance- or execution-environments have the global environment as their parents since that is the enclosing scope of `f`. Because they are two different instances of `f`, the variables in them can point to different values, as we see for the variable `y`. For function `g`, `y` points to 3, while for function `h`, `y` points to 2. In a call to function `g`, we create a local environment for the function call—shown at the bottom right in the figure. We do not have any local variables in `g` so this environment does not contain any variables, but it has a parent which is the `f` instance where we created `g`.
-
-![Environment graph when calling `g`.](figures/calling-g-environments){#fig:calling-g-environments}
-
-When we evaluate the expression `x + y + z` inside the call to `g`, we need to map variables to values. The search will start in the local environment and then progress up the parent links until it finds a matching variable. For variables `y` and `z` we find values in the parent of the `g` call, the instance of the `f` call that created `g`. For `x` we find the value in the grandparent, the global environment.
-
-The rule for evaluating expressions is always the same: we look for variables by searching in environments, starting with the immediate environment where we evaluate the expression and search along the chain of parent environments. We check each environment in the chain in turn until we find the variable we are looking for. We get the standard evaluation rules of lexical scoping because functions get associated with the environment where they are created and since this environment is set as the parent environment of execution environments. The only trick to understanding how expressions are evaluated in R is to understand which environments are used. For the body of functions it is as simple as I have just explained, but for function parameters, there are a few more rules to consider.
 
 ## Default parameters, lazy evaluation, and promises
-
-When you pass primitive values such as numbers to a function parameter, there is nothing we need to evaluate, so there are no complications. This is why we didn’t have to worry about the environment of the arguments in the previous example. If we pass expressions along as parameters, however, we need to know how these should be evaluated.
-
-Most of the time, R behaves as if expressions are evaluated before a function is called, but this not what happens. If we passed values to functions rather than expressions, we would not be able to get the expressions using `substitute` as we have done in previous chapters. When we call a function in R, the parameters will refer to unevaluated expressions; such expressions are known as *promises*. Promises are evaluated the first time we use a parameter variable but not before—an approach to parameter evaluation known as *lazy evaluation*. If we never refer to an argument, the corresponding expression will never be evaluated, so we can write code such as this without raising exceptions:
 
 
 ```r
@@ -105,18 +71,10 @@ f(2, stop("error!"))
 ## [1] 2
 ```
 
-We never refer to the parameter `y` inside the body of `f`, so we never evaluate it. Consequently, we never call `stop` to raise the error.
-
-So, since parameters can contain expressions, we need a rule for how to evaluate these. Here, there is a difference between default parameters, defined when the function is created, and parameters provided when the function is called. The former is evaluated in the local scopes of function calls while the latter is evaluated in the environment where the function is called.
-
-Consider this function:
-
 
 ```r
 f <- function(y, z = 2 * y) y + z
 ```
-
-The function takes two parameters, `y` and `z`
 
 
 ```r
@@ -127,8 +85,6 @@ f(2, 1)
 ## [1] 3
 ```
 
-but if we only provide `y`, then `z` will be set to `2 * y`:
-
 
 ```r
 f(2)
@@ -137,12 +93,6 @@ f(2)
 ```
 ## [1] 6
 ```
-
-When we evaluate the promise that `z` points to when the function is called—we do this in the expression where we use the variable—the promise-expression is evaluated. This means that R needs to find the variable `y`. If we try to evaluate the expression `2 * y` in the scope where the function is defined—the global environment—then we would get an error, as there is no `y` variable defined there. The semantics of default parameters *could* be such that we evaluated them in the scope where we define a function. If so, we wouldn’t be able to make default parameters depend on other parameters, which is what we want here—we want `z` to depend on `y` if we do not explicitly provide a value to it. The actual semantics is that the promise is evaluated in the function-call environment. When we call `f`, before we evaluate the `y + z` expression, the situation is therefore as shown in [@fig:default-parameters-f]. Here, I have drawn the promise for `z` as the expression passed along as the function argument together with the environment in which it should be evaluated.
-
-![Default parameter promise.](figures/default-parameters-f){#fig:default-parameters-f}
-
-When we call `f` with a parameter that is an expression we do *not* want to evaluate this expression in function-call scope. Consider this:
 
 
 ```r
@@ -154,13 +104,6 @@ f(2 * y)
 ## [1] 12
 ```
 
-The intent is to call `f` with `2 * y` which should be `4` since `y` is 2. If we tried to evaluate it inside the function call, however, we would have a circular dependency. Inside the function call, `y` is a variable and if it points to `2 * y` we cannot evaluate the expression without knowing what `y` is, which we cannot know until we have evaluated the expression, which we cannot because we do not know what `y` is...
-
-When we call a function with an expression as an argument, the corresponding promise will be evaluated in the environment where we call the function, so before we evaluate `y + z` inside `f`, the situation is as shown in [@fig:default-and-promise-parameters-f]. Inside the environment of the function call, both `y` and `z` refer to promises, but these promises are associated with different environments. To evaluate the expression `y + z`, we need to evaluate both promises. To get the value for `y`, we need to evaluate `2 * y` *in the global scope*, which gives us 4 and to get the value for `z` we need to evaluate `2 * y` *in the local scope*, which gives us 8.
-
-![Calling `f` with an expression for `y`.](figures/default-and-promise-parameters-f){#fig:default-and-promise-parameters-f}
-
-At the risk of taking the example a step too far, let us consider the situation where we call `f` from another function:
 
 
 ```r
@@ -171,16 +114,6 @@ g(2 * y)
 ```
 ## [1] 24
 ```
-
-Before we evaluate the expression `y + z` inside function `f`, the state of the environment graph is as shown in [@fig:default-and-promise-parameters-g]. It takes a little effort to see what happens when we want to evaluate `y + z`, but doing this exercise will go a long way towards understanding environments.
-
-![Calling `g` with an expression for `x` that depend on variable `y`.](figures/default-and-promise-parameters-g){#fig:default-and-promise-parameters-g}
-
-Both `y` and `z` are promises we haven’t evaluated yet. Since `z` depend on `y`, we need to evaluate `y` first. To do this, we need to evaluate the expression `2 * x` in the scope of the call to `g`. Here, we need to evaluate `x` which is another promise, the expression `2 * y` which should be evaluated in the global scope (where `y` refers to a different variable than then local variable inside the `f` instance). In the global scope, `y` refers to the value 2, so we can evaluate `2 * y` directly and get the value 4. This value then replaces the promise in the scope of the call to `g`. Once we have evaluated a promise, the variable refers to the value and no longer the expression—more on that below. This now means that we can evaluate `2 * x` in the scope of the `g` call to get 8. So now `y` in the call to `f` refers to 8. This means we can evaluate `2 * y` to get 16 which we assign the variable `z`. Finally, we can evaluate `y + z` to get 8 + 16 = 24.
-
-To summarise this section, parameters we pass to functions, if these are not primitive values, are considered expressions that must be evaluated at some point, and together with the expressions, we have an associated scope in which to evaluate the expression. There is one more caveat, though, which I hinted to in the previous example: parameters are only considered expressions until the first time we evaluate them. After that, they are the result of this evaluation.
-
-There are pros and cons with this semantics—although, to be honest, predominantly cons. Because promises are not evaluated until we refer to the variable that holds them we can avoid computing values we do not need, and we can make default parameters that depend on some computation inside a function call as long as we do those computations before we use the variable that needs them. For example, we can define a default parameter in terms of a variable we set inside a function
 
 
 ```r
@@ -195,8 +128,6 @@ h(1)
 ## [1] 5
 ```
 
-but this will fail if we refer to the promise that needs the variable before we compute it:
-
 
 ```r
 h <- function(x, y = 2 * w) {
@@ -210,8 +141,6 @@ h(1)
 ```
 ## Error in h(1): object 'w' not found
 ```
-
-If a promise depends on a variable that we update during a computation we also have to be careful. The promise is only ever evaluated once; after we have evaluated a promise, the variable that used to hold it now hold the result of the evaluation and no longer the promise expression. If we change variables that occurred in the promise, we do not update the value the variable now hold.
 
 
 ```r
@@ -228,14 +157,10 @@ h(1)
 ## [1] 3
 ```
 
-For promises held by default parameters, this usually does not cause any problems. It is simple to follow what local variables will change in the function and at which point the promise will be evaluated. Lazy evaluation of arguments, however, is a common source of problems when combined with closures. Consider this function:
-
 
 ```r
 make_adder <- function(n) function(m) n + m
 ```
-
-which returns a closure that will add `n` to its argument, `m`. We can use it like this:
 
 
 ```r
@@ -256,15 +181,11 @@ add_2(1)
 ## [1] 3
 ```
 
-No problems here, but now consider this:
-
 
 ```r
 adders <- vector("list", 3)
 for (i in 1:3) adders[[i]] <- make_adder(i)
 ```
-
-The intent here is to create three adder functions that add 1, 2, and 3, respectively, to their argument. When we call the first function, though, we get an unpleasant surprise:
 
 
 ```r
@@ -274,14 +195,6 @@ adders[[1]](1)
 ```
 ## [1] 4
 ```
-
-The expression `n + m` inside the closure is not evaluated until we call it. Just before we evaluate the body in the `adders[[1]](1)` call, the environment graph looks like [@fig:adders]. All three adders are closures that refer to different instances of `make_adders`, but all these instances have `n` refer to a promise that is the expression `i`. The variable `i` is found in the global environment and not in the closure environment, and after we have created all three closures, `i` refers to the number 3. To evaluate `n + m` inside the adder, we must first evaluate the promise that `n` refers to. We search for `n` and find it in the parent environment of the function call, which is the closure environment, and here `n` refers to `i` that should be evaluated in the global environment. We evaluate it and now `n` refers to 3, see [@fig:adders-2]. This is why the result of calling `adders[[1]]` with `m` set to one returns four and not two.
-
-![Adders just before evaluating the body of the `adders[[1]](1)` call.](figures/adders){#fig:adders}
-
-![Adders after evaluating the `n` promise in `adders[[1]]`.](figures/adders-2){#fig:adders-2}
-
-After we have called this closure, the variable `n` no longer refers to a promise but to the value 3, so changing `i` at this point will not affect the closure:
 
 
 ```r
@@ -293,8 +206,6 @@ adders[[1]](1)
 ## [1] 4
 ```
 
-It will, however, affect the closures where we haven’t evaluated the promise yet, so if we call one of the other closures after changing `i` we will see the result of the change:
-
 
 ```r
 adders[[2]](1)
@@ -303,8 +214,6 @@ adders[[2]](1)
 ```
 ## [1] 2
 ```
-
-This is a problem that only occurs when you create closures, but every time you do, the risk is there. You can avoid the problem by explicitly evaluating promises before you return the closure; this is what the function `force` is for.
 
 
 ```r
@@ -324,12 +233,6 @@ for (i in 1:3) print(adders[[i]](0))
 
 
 ## Quotes and non-standard evaluation
-
-What we have seen so far in this chapter is the standard way to evaluate expressions, but as you can probably guess, the reason we call it the standard way is because there are alternatives to it—non-standard evaluation. That would be any other way we could evaluate expressions.
-
-Actually, even non-standard evaluation follows the rules for looking up variable to value mappings that standard evaluation follows. We have a chain of environments, and we search them in turn. With non-standard evaluation, we just chain together environments in alternative ways.
-
-To implement non-standard evaluation, we first need an expression to evaluate—rather than the value that is the result of evaluating one. We have already seen two ways of obtaining such an expression: we have used `quote` to get an expression from a literal expression, or we can use `substitute` to translate a function argument into an expression. There are other ways to create quoted expressions—see, e.g., functions `expression` and `bquote`—and `substitute` can be used for more than simply translating function arguments into expressions, but `quote` and `substitute` on arguments suffice for most uses of non-standard evaluation. They both give us a quoted expression with no environment associated with it.
 
 
 ```r
@@ -351,8 +254,6 @@ ex2
 ## 2 * x + y
 ```
 
-When implementing lambda expressions, we used such expressions to create new functions. 
-
 
 ```r
 g <- rlang::new_function(alist(x=, y=), body = ex1)
@@ -372,8 +273,6 @@ g(1,3)
 ## [1] 5
 ```
 
-A more direct way to evaluate an expression is using `eval`:
-
 
 ```r
 x <- 1
@@ -384,8 +283,6 @@ eval(ex1)
 ```
 ## [1] 5
 ```
-
-With `eval`, we will evaluate the expression in the environment where we call `eval` by default, so above we evaluated `ex1` in the global environment and in the example below we evaluate it in the local environment of calls to function `h`:
 
 
 ```r
@@ -405,8 +302,6 @@ h(1,3)
 ## [1] 5
 ```
 
-If we use the default environment in calls to `eval`, we get the standard evaluation, but we do not *have* to use the default environment. We can provide an environment to `eval` that we want it to evaluate the expression in. For example, we can make function `h` evaluate `ex1` in the calling environment instead of its own local environment:
-
 
 ```r
 h <- function(x, y) eval(ex1, rlang::caller_env())
@@ -418,10 +313,6 @@ h(4,4)
 ## [1] 3
 ```
 
-Here, we call `h` from the global environment where `x` and `y` are set to one. Even though the local variables in the call to `h` are four and four, `2 * x + y` evaluates to three because it is the values of `x` and `y` in the global environment that are used.
-
-Similarly, we can use an alternative environment for functions we create. By default, `new_function` will use the environment where we create the function, so for example, we can create a function that creates a closure this way:
-
 
 ```r
 f <- function(x) rlang::new_function(alist(y=), ex1)
@@ -431,7 +322,7 @@ f(2)
 ```
 ## function (y) 
 ## 2 * x + y
-## <environment: 0x7fb52b495228>
+## <environment: 0x7fe8db858ca0>
 ```
 
 ```r
@@ -441,8 +332,6 @@ f(2)(2)
 ```
 ## [1] 6
 ```
-
-We can provide an environment to `new_function`, however, to change this behaviour. Consider, for example, this function:
 
 
 ```r
@@ -465,9 +354,6 @@ g(2)(2)
 ## [1] 4
 ```
 
-When we call `g`, we get a new function, but *this* function will be evaluated in the scope where we *call* `g`, not the scope *inside* the call to `g`. Thus, the argument `x` to `g` will not be used when evaluating `2 * x + y`. In this example, we instead use the global variable `x`, which we set to one above.
-
-With `eval`, the environment parameter doesn’t have to be an environment. You can use a `list` or a `data.frame` (which is strictly speaking also a `list`) instead.
 
 
 ```r
@@ -487,16 +373,11 @@ eval(ex1, df)
 ## [1]  3  6  9 12
 ```
 
-Evaluating expressions in the scope of lists and data frames is a powerful tool exploited in domain-specific languages such as `dplyr`. But lists and data frames do not have the graph structure that environments have, which begs the question: if we do not find a variable in the list or data frame, where do we find it when we call `eval`? To determine this, `eval` takes a third argument that determines the enclosing scope. If variables are not found in the environment parameter, then `eval` will search in the enclosing scope parameter.
-
-Consider the functions `f` and `g` defined below:
 
 ```r
 f <- function(expr, data, y) eval(expr, data)
 g <- function(expr, data, y) eval(expr, data, rlang::caller_env())
 ```
-
-They both evaluate an expression in a context defined by `data` but `f` then uses the function call scope as the enclosing scope while `g` uses the calling scope as the enclosing environment in the call to `eval`. Both take the parameter `y` but if we use `y` in the expression we pass to the functions, only `f` will use the parameter; `g`, on the other hand, will look for `y` in the calling scope if it is not in `data`:
 
 
 ```r
@@ -517,10 +398,6 @@ g(quote(x + y), df, y = 5:8) == 1:4 + 1:4
 ## [1] TRUE TRUE TRUE TRUE
 ```
 
-The combination of quoted expressions and non-standard evaluation is indubitably a very powerful tool for creating domain-specific languages, but it is not without its pitfalls, of which there are mainly two: complications about who is responsible for quoting expressions and complications about stringing environments together correctly.
-
-Let us consider these in turn. Some code must be responsible for turning an expression into a quoted expression. The simplest solution to this is to make it up to the user to always quote expressions that must be quoted. This would be the solution in a function like this:
-
 
 ```r
 f <- function(expr, data) eval(expr, data, rlang::caller_env())
@@ -531,7 +408,6 @@ f(quote(u + v), data.frame(u = 1:4, v = 1:4))
 ## [1] 2 4 6 8
 ```
 
-It is, however, a bit cumbersome to explicitly quote every time you call such a function, and it goes against the spirit of domain-specific languages where we want to make new syntax to make it easier to write code. However, if we let the function quote the expression using substitute, as in this function
 
 
 ```r
@@ -545,7 +421,6 @@ fq(u + v, data.frame(u = 1:4, v = 1:4))
 ## [1] 2 4 6 8
 ```
 
-then we potentially run into problems if we want to call this function from another function. We can try just calling `fq` with an expression:
 
 
 ```r
@@ -557,8 +432,6 @@ g(u + v)
 ## Error in eval(substitute(expr), data, rlang::caller_env()): object 'u' not found
 ```
 
-This doesn’t work because `expr` is now considered a promise that should be evaluated in the global scope, so inside `fq` we try to evaluate the expression, which we cannot do because `u` and `v` are not defined. We would be even worse off if we used an expression that we actually *can* evaluate because it wouldn’t be obvious that we were evaluating it in the wrong scope and thus on the wrong data
-
 
 ```r
 u <- v <- 5:8
@@ -568,8 +441,6 @@ g(u + v)
 ```
 ## [1] 10 12 14 16
 ```
-
-We could try to get the expression quoted using `substitute` inside `g`:
 
 
 ```r
@@ -583,7 +454,6 @@ g(u + v)
 ## expr
 ```
 
-This fails in a different way. The expression that we get inside `fq` when that function calls substitute is the expression the function was called with, which is `substitute(expr)`. So it evaluates `substitute(substitute(expr))` and get `expr`, not `u + v`. The same would happen if we used `quote`
 
 
 ```r
@@ -597,12 +467,6 @@ g(u + v)
 ## expr
 ```
 
-in this case because `quote(expr)` doesn’t substitute the function argument into `expr`.
-
-There isn’t any good way to resolve this problem. If you call a function that quotes an expression, you should give it a literal expression to quote. Such functions are essentially not useful for programming—they provide an interface to a user of your domain-specific language, but you cannot use them to implement the language by calling them from other functions.
-
-The solution is to have functions that expect expressions to be quoted, like the function `f` we wrote before `fq`, and use those when you call one function from another:
-
 
 ```r
 g <- function(expr) {
@@ -615,7 +479,6 @@ g(u + v)
 ## [1] 2 4 6 8
 ```
 
-If you want some functionality to be available for programming—i.e. calling a function from another function—and also as an operation in your language, then write one that expects expressions to be quoted and another that wraps it:
 
 
 ```r
@@ -628,7 +491,6 @@ fq(u + v, data.frame(u = 1:4, v = 1:4))
 ## [1] 2 4 6 8
 ```
 
-This, however, brings us to the second pitfall—getting environments wired up correctly. Consider these two functions:
 
 
 ```r
@@ -642,7 +504,6 @@ h <- function(x, y, z) {
 }
 ```
 
-Function `g` explicitly quotes the expression `w + u + v` and calls `f`; `h` instead calls `fq` that takes care of the quoting for it. The first function works, the second does not:
 
 
 ```r
@@ -661,12 +522,6 @@ h(1:4, 1:4, 1:4) == (1:4 + 1:4 + 1:4) + 1:4 + 1:4
 ## Error in eval(expr, data, rlang::caller_env()): object 'w' not found
 ```
 
-This time, the problem is not quoting. Both functions attempt to evaluate the same expression, `w + u + v`, inside function `f`. The problem is that the variable `w` is only available to `f` when we call it from `g`. To see why, consider the environments in play. We do not define any nested functions, so all three functions, `f`, `fq`, `g`, and `h`, only have access to their local environment and the global environment. The expression that `f` gets as its argument, however, is not evaluated in `f`’s local environment; it is evaluated in its caller’s environment. When `f` is called directly from `g`, the caller environment is the local environment of the `g` call, where `w` is defined. When `f` is called from `h`, however, it is not called directly. Since `h` calls `fq` that then calls `f`, the caller of `f` in this case is `fq`. The variable `w` is defined in the local scope of `h`, but this is not where `f` tries to evaluate the expression; `f` tries to evaluate the expression in the scope of `fq` where `w` is *not* defined.
-
-It is less obvious how we should resolve this issue. It is, of course, possible to pass environments along with expressions as separate function parameters, but this quickly becomes cumbersome if we have to work with more than one expression. What we want, ideally, is to associate expressions with the environment in which we want to look up variables we do not explicitly override, for example by getting them from a data frame.
-
-Expressions do not carry along with them any environment, so we cannot get there directly. Formulas, however, do. Instead of using expressions, we can use one-sided formulas. Quoting would now involve making a formula out of an expression. If the formula is one-sided, we can get the expression as the second element in it, and the environment where the formula is defined is available using the `environment` function. We can rewrite the `f` and `fq` functions to be based on formulas:
-
 
 ```r
 ff <- function(expr, data) {
@@ -679,7 +534,6 @@ ffq <- function(expr, data) {
 }
 ```
 
-With `ff` you need to explicitly create the formula—similar to how you had to quote expressions in `f` explicitly—and this automatically gives you the environment associated with the formula. With `ffq` we translate an expression into a formula using `substitute` and explicitly set its environment to the caller environment. We can now define `g` and `h` similar to before, except that `g` uses a formula instead of `quote`:
 
 
 ```r
@@ -692,8 +546,6 @@ h <- function(x, y, z) {
   ffq(w + u + v, data.frame(u = 1:4, v = 1:4))
 }
 ```
-
-This time, both functions will evaluate the expressions in the right scope:
 
 
 ```r
@@ -711,6 +563,4 @@ h(1:4, 1:4, 1:4) == (1:4 + 1:4 + 1:4) + 1:4 + 1:4
 ```
 ## [1] TRUE TRUE TRUE TRUE
 ```
-
-Associating environments to expressions is the idea behind *quosures* from the `rlang` package. The word is a portmanteau created from quotes and closures—similar to how closures are functions with associated environments, quosures are quoted expressions with associated environments. Quosures are based on formulas, and we could use formulas as in the example we just saw, but the `rlang` package provide functionality that makes it much simpler to program domain-specific languages using quosures. The `rlang` package provides several functions for making it easier to implement domain-specific languages through so-called “tidy evaluation”, which is the topic of the next chapter.
 
