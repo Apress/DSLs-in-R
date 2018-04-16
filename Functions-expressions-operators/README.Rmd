@@ -1,0 +1,248 @@
+
+# Functions, classes and operators
+
+## The S3 object-oriented programming system
+
+
+### Objects and classes
+
+
+```{r}
+class(4)
+class("foo")
+class(TRUE)
+class(sin)
+```
+
+```{r}
+class(sin) <- "foo"
+class(sin)
+```
+
+```{r}
+sin(0)
+```
+
+
+### Generic functions
+
+
+```{r}
+foo <- function(x, y, z) UseMethod("foo")
+```
+
+```{r}
+foo(1, 2, 3)
+```
+
+```{r}
+foo.default <- function(x, y, z) {
+   cat("default foo\\n")
+}
+```
+
+```{r}
+foo(1, 2, 3)
+```
+
+
+```{r}
+foo.numeric <- function(x, y, z) {
+   cat("numeric\\n")
+}
+```
+
+```{r}
+foo(1, 2, 3)
+```
+
+```{r}
+bar <- function(x, y, z) UseMethod("foo", y)
+```
+
+```{r}
+foo("foo",2,3)
+bar("foo",2,3)
+bar(1,"bar",3)
+```
+
+```{r}
+x <- 1
+foo(x, 2, 3)
+```
+
+```{r}
+class(x) <- c("a", "b", "c")
+foo(x, 2, 3)
+```
+
+```{r}
+foo.a <- function(x, y, z) cat("a\\n")
+foo.b <- function(x, y, z) cat("b\\n")
+foo.c <- function(x, y, z) cat("c\\n")
+foo(x, 2, 3)
+```
+
+```{r}
+class(x) <- c("b", "a", "c")
+foo(x, 2, 3)
+
+class(x) <- c("c", "b", "a")
+foo(x, 2, 3)
+```
+
+```{r}
+foo.a <- function(x, y, z) {
+  cat("a\\n")
+  NextMethod()
+}
+foo.b <- function(x, y, z) {
+  cat("b\\n")
+  NextMethod()
+}
+foo.c <- function(x, y, z) {
+  cat("c\\n")
+  NextMethod()
+}
+```
+
+```{r}
+class(x) <- c("a", "b", "c")
+foo(x, 2, 3)
+
+class(x) <- c("b", "a", "c")
+foo(x, 2, 3)
+
+class(x) <- c("c", "b", "a")
+foo(x, 2, 3)
+```
+
+### Operator overloading
+
+```{r}
+`+.a` <- function(e1, e2) {
+  cat("+.a\\n")
+  NextMethod()
+}
+x + 2
+```
+
+```{r}
+x + 3
+3 + x
+```
+
+```{r}
+x <- 1 ; y <- 3
+class(x) <- "a"
+class(y) <- "b"
+x + y
+y + x
+```
+
+```{r}
+`+.b` <- function(e1, e2) {
+  cat("+.b\n")
+  NextMethod()
+}
+
+x + y
+y + x
+```
+
+```{r}
+class(x) <- c("a", "b")
+x + 2
+x + y
+```
+
+```{r}
+`!.a` <- function(x) {
+  cat("Not for a\\n")
+  NextMethod()
+}
+!x
+```
+
+```{r}
+`+.a` <- function(e1, e2) {
+  if (missing(e2)) {
+    cat("Unary\\n")
+  } else {
+    cat("Binary\\n")
+  }
+  NextMethod()
+}
+
+class(x) <- "a"
++x
+2+x
+```
+
+
+### Group generics
+
+```{r}
+Ops.c <- function(e1, e2) {
+  cat(paste0("Ops.c (", .Generic, ")\\n"))
+  NextMethod()
+}
+
+z <- 2
+class(z) <- "c"
+z + 1
+1 + z
+z ^ 3
+```
+
+```{r}
+class(z) <- c("a", "c")
+1 + z
+2 * z
+```
+
+
+## Precedence and evaluation order
+
+
+Operator      Usual meaning
+--------      -----------------
+`[` `[[`        Indexing
+`^`              Exponentiation (Evaluates right to left)
+`-` `+`          Unary minus and plus
+`%any%`       Special operators
+`*` `/`          Multiply, divide
+`+` `-`          Binary add and subtract
+`<` `>` 
+`<=` `>=`     Ordering and comparison
+`==` `!=` 
+`!`              Negation
+`&` `&&`        And
+`|` `||`        Or
+`:=`          Assignment
+`->` `->>`    Assignment
+`<-` `<<-`    Assignment (right to left)
+`?`           Help
+
+
+## Code blocks
+
+```{r}
+`%times%` <- function(n, body) {
+  body <- substitute(body)
+  for (i in 1:n)
+    eval(body, parent.frame())
+}
+```
+
+```{r}
+4 %times% cat("foo\\n")
+```
+
+```{r}
+2 %times% {
+  cat("foo\\n")
+  cat("bar\\n")
+}
+```
+
