@@ -10,4 +10,5 @@ The source code for each chapter can be downloaded as an R Markdown or an R sour
 1. Introduction
 2. [Matrix expressions](Matrix-expressions/README.md) [[R source]](Matrix-expressions/README.R)
 3. [Components of a programming language](Components-of-a-language/README.md) [[R source]](Components-of-a-language/README.R)
+4. [Functions, expressions and operators](Functions-expressions-operators/README.md) [[R source]](Functions-expressions-operators/README.R)
 
