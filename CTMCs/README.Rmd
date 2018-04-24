@@ -110,14 +110,14 @@ print.ctmc <- function(x, ...) {
   parameters <- lst_to_list(x$params) %>% 
     unlist() %>% unique() %>% rev()
 
-  cat("CTMC:\\n")
-  cat("parameters:", paste(parameters), "\\n")
-  cat("transitions:\\n")
+  cat("CTMC:\n")
+  cat("parameters:", paste(parameters), "\n")
+  cat("transitions:\n")
   for (i in seq_along(from)) {
     cat(from[[i]], "->", to[[i]], 
-        "\\t[", deparse(get_expr(rate[[i]])), "]\\n")
+        "\t[", deparse(get_expr(rate[[i]])), "]\n")
   }
-  cat("\\n")
+  cat("\n")
 }
 ```
 
@@ -214,7 +214,7 @@ as_tibble.ctmc_trace <- function(x, ...) {
 }
 print.ctmc_trace <- function(x, ...) {
   df <- as_tibble(x)
-  cat("CTMC trace:\\n")
+  cat("CTMC trace:\n")
   print(df)
 }
 ```

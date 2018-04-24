@@ -145,14 +145,14 @@ print.ctmc <- function(x, ...) {
   parameters <- lst_to_list(x$params) %>% 
     unlist() %>% unique() %>% rev()
 
-  cat("CTMC:\\n")
-  cat("parameters:", paste(parameters), "\\n")
-  cat("transitions:\\n")
+  cat("CTMC:\n")
+  cat("parameters:", paste(parameters), "\n")
+  cat("transitions:\n")
   for (i in seq_along(from)) {
     cat(from[[i]], "->", to[[i]], 
-        "\\t[", deparse(get_expr(rate[[i]])), "]\\n")
+        "\t[", deparse(get_expr(rate[[i]])), "]\n")
   }
-  cat("\\n")
+  cat("\n")
 }
 ```
 
@@ -171,7 +171,15 @@ m
 ```
 
 ```
-## CTMC:\nparameters: a b \ntransitions:\nfoo -> bar \t[ a ]\nfoo -> baz \t[ 2 * a ]\nfoo -> qux \t[ 4 ]\nbar -> baz \t[ b ]\nbaz -> qux \t[ a + x * b ]\nqux -> foo \t[ a + 2 * b ]\n\n
+## CTMC:
+## parameters: a b 
+## transitions:
+## foo -> bar 	[ a ]
+## foo -> baz 	[ 2 * a ]
+## foo -> qux 	[ 4 ]
+## bar -> baz 	[ b ]
+## baz -> qux 	[ a + x * b ]
+## qux -> foo 	[ a + 2 * b ]
 ```
 
 
@@ -224,7 +232,7 @@ Qf
 ##     diag(Q) <- -rowSums(Q)
 ##     Q
 ## }
-## <environment: 0x7f9b96afb460>
+## <environment: 0x7fb395470dc0>
 ```
 
 
@@ -292,7 +300,7 @@ as_tibble.ctmc_trace <- function(x, ...) {
 }
 print.ctmc_trace <- function(x, ...) {
   df <- as_tibble(x)
-  cat("CTMC trace:\\n")
+  cat("CTMC trace:\n")
   print(df)
 }
 ```
@@ -310,7 +318,8 @@ tr
 ```
 
 ```
-## CTMC trace:\n# A tibble: 6 x 2
+## CTMC trace:
+## # A tibble: 6 x 2
 ##   state    at
 ##   <chr> <dbl>
 ## 1 foo   0.   
