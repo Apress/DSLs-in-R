@@ -1,4 +1,4 @@
-# Tidy evaluation {#sec:tidy-eval}
+# Tidy evaluation 
 
 
 ```r
@@ -217,7 +217,7 @@ rlang::eval_tidy(quo(xx), env = list2env(list(xx = 5:8)))
 ```
 
 ```
-## Error in rlang::eval_tidy(quo(xx), env = list2env(list(xx = 5:8))): object 'xx' not found
+## Error in rlang::eval_tidy(quo(xx), env = list2env(list(xx = 5:8))): objekt 'xx' blev ikke fundet
 ```
 
 
@@ -234,7 +234,7 @@ g
 ```
 ## function (x, y) 
 ## x + y + z
-## <environment: 0x7fc0915de7f8>
+## <environment: 0x7fc61fa13438>
 ```
 
 ```r
@@ -390,7 +390,7 @@ make_line_expressions(intercept = 0) %>% eval_line(coef = 1)
 ```
 
 ```
-## Error in (function (coef) : object 'intercept' not found
+## Error in (function (coef) : objekt 'intercept' blev ikke fundet
 ```
 
 
@@ -725,7 +725,7 @@ g
 ```
 ## function (data) 
 ## with(data, mean(x + y + z, na.rm = TRUE, trim = 0.1))
-## <environment: 0x7fc092bcc4a0>
+## <environment: 0x7fc61dc9c608>
 ```
 
 ```r
@@ -756,7 +756,7 @@ g(x + y)
 ```
 ## <quosure>
 ##   expr: ^rlang::enquo(expr)
-##   env:  0x7fc08d72e1b8
+##   env:  0x7fc61fb2cca8
 ```
 
 ```r
