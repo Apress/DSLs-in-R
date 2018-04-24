@@ -1,7 +1,7 @@
-## ---- echo=FALSE---------------------------------------------------------
-suppressPackageStartupMessages(library(magrittr, quietly = TRUE))
-suppressPackageStartupMessages(library(rlang, quietly = TRUE))
-suppressPackageStartupMessages(library(dplyr, quietly = TRUE))
+## ------------------------------------------------------------------------
+library(rlang)
+library(magrittr)
+library(dplyr)
 
 ## ------------------------------------------------------------------------
 make_args_list <- function(args) {
@@ -162,7 +162,7 @@ deparse_construction <- function(object) {
   }
 }
 construction_printer <- function(x, ...) {
-  cat(deparse_construction(x), "\\n")
+  cat(deparse_construction(x), "\n")
 }
 
 ## ------------------------------------------------------------------------
@@ -184,7 +184,7 @@ L(1L)
 tree := T(left : tree, right : tree) | L(value)
 L(1L)
 
-## ---- echo=FALSE---------------------------------------------------------
+## ------------------------------------------------------------------------
 #install.packages("pmatch")
 suppressPackageStartupMessages(library(pmatch, quietly = TRUE))
 
@@ -404,7 +404,7 @@ for (i in sample(2:4))
 
 ## ------------------------------------------------------------------------
 for (i in 1:6) {
-  cat(i, " : ", member(tree, i), "\\n")
+  cat(i, " : ", member(tree, i), "\n")
 }
 
 ## ------------------------------------------------------------------------
@@ -428,7 +428,7 @@ member <- function(tree, x) {
 
 tree <- T(R, E, 2, T(B, E, 5, E))
 for (i in 1:6) {
-  cat(i, " : ", member(tree, i), "\\n")
+  cat(i, " : ", member(tree, i), "\n")
 }
 
 ## ------------------------------------------------------------------------
