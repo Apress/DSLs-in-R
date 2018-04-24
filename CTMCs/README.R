@@ -1,8 +1,8 @@
-## ---- echo=FALSE---------------------------------------------------------
-suppressPackageStartupMessages(library(magrittr, quietly = TRUE))
-suppressPackageStartupMessages(library(rlang, quietly = TRUE))
-suppressPackageStartupMessages(library(tibble, quietly = TRUE))
-suppressPackageStartupMessages(library(expm, quietly = TRUE))
+## ------------------------------------------------------------------------
+library(magrittr)
+library(rlang)
+library(tibble)
+library(expm)
 
 ## ------------------------------------------------------------------------
 cons <- function(car, cdr) list(car = car, cdr = cdr)

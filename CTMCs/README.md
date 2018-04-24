@@ -1,18 +1,41 @@
 # Continuous-time Markov chains
 
-We now turn to an example of a domain-specific language where we combine tidy evaluation and the `magrittr` pipe operator. We will write a language for specifying continuous-time Markov chains (CTMCs) and for computing the likelihood of parameters in such CTMCs given a trace of which states the chain is in at different time points. As with the list comprehension example in the previous chapter, we are not going to use operators to create a new syntax for the language but will create a DSL by providing functions that can be strung together to construct "sentences".
-
-We will use the packages `magrittr` and `rlang` to construct the language, `tibble` for data frames and the `expm` package for matrix exponentiation
-
 
 ```r
 library(magrittr)
 library(rlang)
+```
+
+```
+## 
+## Attaching package: 'rlang'
+```
+
+```
+## The following object is masked from 'package:magrittr':
+## 
+##     set_names
+```
+
+```r
 library(tibble)
 library(expm)
 ```
 
-and we will reuse the linked list code plus the functions `collect_symbols_rec` and `make_args_list` we implemented in previous chapters.
+```
+## Loading required package: Matrix
+```
+
+```
+## 
+## Attaching package: 'expm'
+```
+
+```
+## The following object is masked from 'package:Matrix':
+## 
+##     expm
+```
 
 
 ```r
@@ -68,8 +91,6 @@ make_args_list <- function(args) {
 }
 ```
 
-We will use these functions to construct functions from a CTMC specification by extracting the unbound symbols in expressions we associate with transition rates. We will not use the `collect_symbols` function we implemented to collect unbound variables but instead a version that expects its expression is quoted already:
-
 
 ```r
 collect_symbols_q <- function(expr, env) {
@@ -81,11 +102,8 @@ collect_symbols_q <- function(expr, env) {
 }
 ```
 
-This is because we plan to quote expressions in the DSL functions and then call this function with these quoted expressions.
 
 ## Constructing the Markov chain 
-
-We explored several approaches to design a language for CTMCs in [Chapter @sec:components]. In this chapter, we will use the variation that uses the pipe operator, `%>%`, together with an `add_edge` function. We will collect edges in three lists: one list for the “from” states, one for the “to” states, and one for the rates associated with the transitions. Also, we will collect the unbound variables in the rate expressions when we create new edges, so later changes to scopes will not affect the parameters of the CTMC model. To represent a CTMC, we create a class and a list that holds the “from”, “to”, rates and parameters lists:
 
 
 ```r
@@ -96,22 +114,6 @@ ctmc <- function()
                  params = NULL),
             class = "ctmc")
 ```
-
-We want the syntax for constructing a CTMC to look like this:
-
-```r
-m <- ctmc() %>%
-  add_edge(foo, a, bar) %>%
-  add_edge(foo, 2*a, baz) %>%
-  add_edge(foo, 4, qux) %>%
-  add_edge(bar, b, baz) %>%
-  add_edge(baz, a + x*b, qux) %>%
-  add_edge(qux, a + UQ(x)*b, foo)
-```
-
-Therefore, we need to implement the `add_edge` such that it takes four arguments: the CTMC, the “from” state, the rate of the transition, and the “to” state. The CTMC is implicitly provided to the function calls when we are using the pipe operator. The other three arguments should be provided as expressions, and the `add_edge` function will implement a non-standard evaluation to handle them.
-
-We want the “from” and “to” states to be single symbols, but we will translate these into strings that we can use as row- and column-names in the rate matrix for the CTMC. The rate associated with a transition should be an expression, and to get the scope of the expression right, we will translate it into a quosure. We will then extract the unbound variables in this expression—unbound in the environment in which the quosure is defined—and add these to the parameters of the model. The implementation looks like this:
 
 
 ```r
@@ -134,10 +136,6 @@ add_edge <- function(ctmc, from, rate, to) {
 }
 ```
 
-We use `enexpr` for `from` and `to` since we want these symbols to be just that, symbols, and not something we will want to evaluate in any context. We use `enquo` for the `rate` parameter, on the other hand, because we do want to have its environment available when we evaluate the expression. We do not evaluate it yet, though. We cannot evaluate it until we know the parameters for the model, and we do not want those to be fixed inside the CTMC object. We use the rate environment, however, when extracting the unbound variables in the rate expression.
-
-Generally, it is a good idea to be able to get some information about an object we construct by printing it, but the default print function for a `ctmc` object will show the list of lists. This representation, especially for the linked lists, can be hard to decipher. Instead, we can implement a print function for this class by defining a function with the name `print.ctmc`. The information we want to display is the parameters of the model and the edge structure, and we can implement this function like this:
-
 
 ```r
 print.ctmc <- function(x, ...) {
@@ -158,9 +156,6 @@ print.ctmc <- function(x, ...) {
 }
 ```
 
-The implementation is straightforward. We translate the linked lists into lists, to make them easier to work with when we loop over the edges, and we reverse them so we will display them in the order in which they were added to the model. With the linked lists we prepend new edges, so they are represented in the opposite order than the one in which they were added. For the parameters, we remove duplications using `unique` as well. After that, we simply print the parameters as a list and print a line for each edge, showing the “from” and “to” state together with the rate expression on the edge. For the latter, we use `get_expr` to get the bare expression, rather than the quosure, and we use the function `deparse` to translate the expression into a string that we can print.
-
-With the three functions we have defined so far, we can now create and print a continuous time Markov chain:
 
 
 ```r
@@ -179,13 +174,8 @@ m
 ## CTMC:\nparameters: a b \ntransitions:\nfoo -> bar \t[ a ]\nfoo -> baz \t[ 2 * a ]\nfoo -> qux \t[ 4 ]\nbar -> baz \t[ b ]\nbaz -> qux \t[ a + x * b ]\nqux -> foo \t[ a + 2 * b ]\n\n
 ```
 
-This example shows that we can have expressions on the edges that are constants, such as the edge from `foo` to `qux`  that has the rate four. We can have expressions with unbound variables, `a`, `b`, and `2*a`. And we can have expressions that involve a bound variable, the last two edges. Notice here, that the second-to-last edge, from `baz` to `qux`, has a rate expression that includes the (unevaluated) variable `x` while the last edge, from `qux` to `foo`, contains the expression `a + 2*b`, where the value of `x` has been inserted. This is the difference between including a bound variable and unquoting it in the expression. Since `x` is a bound variable, it is not considered a parameter of the model, but in the second-to-last expression, it will be used when we evaluate the rate. If we change its value, we also change the value of the rate expression. For the last rate expression, we have already inserted the value of `x`, so here we will not change the expression by changing the value of `x`.
 
 ## Constructing a rate matrix
-
-We saw how we could translate a list of edges into a rate matrix in [Chapter @sec:components], but in this chapter, we want to do a little more. In [Chapter @sec:components], we had numeric rates on the edges; we now have expressions. Instead of translating the CTMC into a rate matrix, we will create a function for generating rate matrices—a function that, given values for the parameters of the Markov model, will provide us with the corresponding rate matrix.
-
-We implement this functionality via a closure. We write a function that extracts the information we need to build the rate matrix from the `ctmc` object and then define a function for computing the rate matrix given the model’s parameters. It then returns this closure-function. The implementation can look like this:
 
 
 ```r
@@ -216,14 +206,6 @@ get_rate_matrix_function <- function(ctmc) {
 }
 ```
 
-Once again, we translate the linked lists into `list` objects and reverse them. We then get a list of unique nodes in the model by combining the `from` and `to` lists, removing duplicates, and we translate the resulting list into a vector that we will later use to set row- and column-names of the rate matrix. We extract the parameters for the model by translating the linked list into a `list`, and we then translate that into a vector, remove duplicates, and reverse the result to get the parameters in the order in which they were added to the edges.
-
-The closure we define initially takes no formal arguments. We set those from the CTMC arguments after we have defined the function. We do it this way only because it is an easier way to define the function compared to constructing expressions and using something like the `new_function` construction we have used earlier. Before we return the closure, it *will* have a list of formal arguments. Since we don’t know what these will be, we use a trick to get hold of them inside the closure: we get the local environment before we define any local variables—so at this point it will only contain the parameters passed to the function call—and make a list out of those. That list, we can use later to over scope the evaluation of the rate expressions inside the closure.
-
-For the actual construction of the rate matrix, there is little to surprise. We get the size of the matrix from the number of states in the CTMC. We then create the matrix and name rows and columns according to the nodes they represent. Then we (tidy) evaluate all the rate expressions to fill in the cells of the matrix, and finally, we adjust the diagonal so all rows sum to zero.
-
-We now have a command in our language for getting a rate matrix function:
-
 
 ```r
 Qf <- m %>% get_rate_matrix_function()
@@ -242,10 +224,8 @@ Qf
 ##     diag(Q) <- -rowSums(Q)
 ##     Q
 ## }
-## <environment: 0x7f9edfefd878>
+## <environment: 0x7f9b96afb460>
 ```
-
-When we provide the model parameters to this function, we get the rate matrix:
 
 
 ```r
@@ -259,8 +239,6 @@ Qf(a = 2, b = 4)
 ## baz   0   0 -10  10
 ## qux  10   0   0 -10
 ```
-
-Remember that the edge from `baz` to `qux` holds an expression that refers to the global variable `x`. If we change the value of this variable, we also change the result of evaluating the `Qf` function:
 
 
 ```r
@@ -276,13 +254,7 @@ Qf(a = 2, b = 4)
 ## qux  10   0   0 -10
 ```
 
-The edge from `qux` to `foo`, where we substitute the value for `x` at the time we created the edge, using `UQ`, does not change.
-
 ## Traces
-
-An *observation* for a continuous-time Markov chain is a *trace*—a sequence of states, and at which time points we observe the states. In any real data analysis, we would probably write functions to obtain data from files, but since we are exploring domain-specific languages, let us write one for specifying traces. We will make traces depend on the CTMC that we want to use them with so we can test that the states in a trace are also states in the CTMC. If you want to use several CTMCs to analyse the same trace, you could remove these tests, or you could make the trace object depend on a list of legal states instead of a `ctmc` object.
-
-We take the same approach as for the `ctmc` class: we write a function for creating an object to represent traces, and we then have functions for adding information to a trace. The information we want to store in a trace is a list of states and a list of time points in which we observe the states. For the consistency checks between CTMC and trace, we will also store the nodes in the CTMC. The constructor for the trace class looks like this:
 
 
 ```r
@@ -293,8 +265,6 @@ ctmc_trace <- function(ctmc) {
             class = "ctmc_trace")
 }
 ```
-
-We add a verb to the language, a function adding observations of states at specific time points. This function mainly checks the consistency between states and the `ctmc` object and then add states and time points to the `ctmc_trace` object’s lists. 
 
 
 ```r
@@ -313,8 +283,6 @@ add_observation <- function(trace, state, at) {
 }
 ```
 
-As for CTMC objects, we want a printing function for traces. Here, I will take a different approach than what we did for the `ctmc` print-function. I will translate traces into data frames—`tibble` objects, to be precise—and print the result. If I was writing a package for CTMCs, I might take a different approach, but I will use the transformation into data frames later, to compute likelihoods, so I exploit the transformation in the print function as well. To translate a `ctmc_trace` object into a `tibble` object, we specialise the `as_tibble` function. After that, we specialise the `print` function:
-
 
 ```r
 as_tibble.ctmc_trace <- function(x, ...) {
@@ -328,8 +296,6 @@ print.ctmc_trace <- function(x, ...) {
   print(df)
 }
 ```
-
-We now have the functionality to create and print traces:
 
 
 ```r
@@ -357,16 +323,10 @@ tr
 
 ## Computing likelihoods
 
-The final functionality we will implement for this example is for computing the likelihood of parameters given a CTMC and a trace. Back in [Chapter @sec:components], we saw how to translate a rate matrix into a transition-probability matrix by first multiplying the rate matrix by a scalar—the time period that has passed between two observations—and then (matrix-)exponentiating the result. We will reuse the function we implemented there:
-
 
 ```r
 transition_probabilities <- function(Q, t) expm(Q * t)
 ```
-
-For computing the likelihood, we will create a verb in our domain-specific language that translates a CTMC and a trace into a function. This function will take the parameters of the CTMC as arguments—as the function for creating rate matrices we wrote above—and then return the likelihood for those parameters. This is a function we could then use for maximum-likelihood estimation by combining it with an optimisation algorithm, of which there are several available in various R packages.
-
-The implementation is straightforward. We get the rate matrix function from the `ctmc` object and translate the trace into a data frame and store the results in the closure of the function. Then we use the same trick as we used above to get the arguments inside the closure, evaluate the rate-matrix function to get the rate-matrix and put the data from the data frame into a format we need for the computation. That computation is just running through the trace and computing the transition probabilities from two consecutive observations. Since it is a Markov model, the joint probability is the product of those. After we have created the closure, we set its formal arguments, similar to what we did with the rate-matrix function.
 
 
 ```r
@@ -396,8 +356,6 @@ get_likelihood_function <- function(ctmc, trace) {
 }
 ```
 
-That is it; we can now compute likelihoods for a CTMC.
-
 
 ```r
 lhd <- m %>% get_likelihood_function(tr)
@@ -408,6 +366,3 @@ lhd(a = 2, b = 4)
 ## [1] 0.00120108
 ```
 
-In an actual data analysis context, we probably would want to compute the log-likelihood instead. For traces of any useful length, the actual likelihood will lead to underflow since we are dealing with finite-bit floating point numbers. Modifying the likelihood function to a log-likelihood function is a simple matter of changing the product to a sum and taking the log of `P[from[i],to[i]]`.
-
-There might be more functionality you would like to add to a language like this, but even with the few functions we have implemented so far, we have a useful domain-specific language. We have not used any operator overloading to implement it; we didn’t have to. We have used tidy evaluation extensively, though, to implement the non-standard evaluation we use for rate expressions.
